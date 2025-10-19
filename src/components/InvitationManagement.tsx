@@ -31,7 +31,7 @@ const InvitationManagement: React.FC<InvitationManagementProps> = ({ schoolId, c
   const [inviteFormData, setInviteFormData] = useState({
     email: '',
     role: 'teacher' as UserRole,
-    permissions: [] as PagePermission[]
+    permissions: getDefaultPermissions('teacher') as PagePermission[]
   });
 
   // Load existing invitations
@@ -109,7 +109,7 @@ const InvitationManagement: React.FC<InvitationManagementProps> = ({ schoolId, c
       await addDoc(invitationsCollection, newInvitation);
 
       // Reset form and reload
-      setInviteFormData({ email: '', role: 'teacher', permissions: [] });
+      setInviteFormData({ email: '', role: 'teacher', permissions: getDefaultPermissions('teacher') });
       setShowInviteForm(false);
       await loadInvitations();
 
@@ -243,61 +243,119 @@ const InvitationManagement: React.FC<InvitationManagementProps> = ({ schoolId, c
         </div>
 
         {showInviteForm && (
-          <form onSubmit={handleSendInvitation} style={{ display: 'flex', gap: '1rem', alignItems: 'end' }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 'bold' }}>
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={inviteFormData.email}
-                onChange={(e) => setInviteFormData(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="Enter email address"
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.5rem',
-                  border: '1px solid #ced4da',
-                  borderRadius: '4px',
-                  fontSize: '0.875rem'
-                }}
-              />
+          <form onSubmit={handleSendInvitation}>
+            <div className="grid gap-lg">
+              {/* Email and Role Row */}
+              <div className="grid grid-2-mobile-1 gap-md">
+                <div className="form-group">
+                  <label className="form-label">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={inviteFormData.email}
+                    onChange={(e) => setInviteFormData(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="Enter email address"
+                    required
+                    className="form-input"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">
+                    Role
+                  </label>
+                  <select
+                    value={inviteFormData.role}
+                    onChange={(e) => {
+                      const newRole = e.target.value as UserRole;
+                      setInviteFormData(prev => ({
+                        ...prev,
+                        role: newRole,
+                        permissions: getDefaultPermissions(newRole)
+                      }))
+                    }}
+                    className="form-select"
+                  >
+                    <option value="teacher">Teacher</option>
+                    <option value="staff">Staff</option>
+                    <option value="front_office">Front Office</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Custom Permissions Section */}
+              <div className="form-group">
+                <label className="form-label mb-2">
+                  Page Access Permissions
+                </label>
+                <div className="card" style={{ backgroundColor: '#f8f9fa' }}>
+                  <div className="card-body">
+                    <p className="text-sm text-muted mb-3">
+                      Select which pages this user can access. Defaults are set based on role, but you can customize them.
+                    </p>
+                    <div className="grid grid-2-mobile-1 gap-sm">
+                      {[
+                        { key: 'CAR_LOOKUP', label: 'Car Lookup', icon: '🔍', description: 'Find and queue cars' },
+                        { key: 'MANAGEMENT', label: 'Management', icon: '📊', description: 'Cone queue management' },
+                        { key: 'CHECKIN', label: 'Student Check-in', icon: '👥', description: 'Check students in/out' },
+                        { key: 'OVERRIDES', label: 'Overrides', icon: '🔄', description: 'Override dismissal rules' },
+                        { key: 'SETUP', label: 'Teacher Setup', icon: '🔧', description: 'Manage students and cars' },
+                        { key: 'ADMIN', label: 'Admin Panel', icon: '⚙️', description: 'Full admin access' },
+                        { key: 'REPORTS', label: 'Reports', icon: '📈', description: 'View analytics and reports' }
+                      ].map(permission => (
+                        <label
+                          key={permission.key}
+                          className="flex items-center gap-sm p-2"
+                          style={{
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            border: '1px solid #dee2e6',
+                            backgroundColor: inviteFormData.permissions.includes(permission.key as PagePermission)
+                              ? '#e7f3ff'
+                              : 'white'
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={inviteFormData.permissions.includes(permission.key as PagePermission)}
+                            onChange={(e) => {
+                              const perm = permission.key as PagePermission;
+                              setInviteFormData(prev => ({
+                                ...prev,
+                                permissions: e.target.checked
+                                  ? [...prev.permissions, perm]
+                                  : prev.permissions.filter(p => p !== perm)
+                              }))
+                            }}
+                            style={{ minWidth: '16px', minHeight: '16px' }}
+                          />
+                          <div className="flex-1">
+                            <div className="flex items-center gap-xs">
+                              <span>{permission.icon}</span>
+                              <span className="font-semibold text-sm">{permission.label}</span>
+                            </div>
+                            <div className="text-xs text-muted">{permission.description}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex justify-end">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn btn-success"
+                  style={{ opacity: loading ? 0.6 : 1 }}
+                >
+                  {loading ? 'Sending...' : 'Send Invitation'}
+                </button>
+              </div>
             </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 'bold' }}>
-                Role
-              </label>
-              <select
-                value={inviteFormData.role}
-                onChange={(e) => setInviteFormData(prev => ({ ...prev, role: e.target.value as UserRole }))}
-                style={{
-                  padding: '0.5rem',
-                  border: '1px solid #ced4da',
-                  borderRadius: '4px',
-                  fontSize: '0.875rem'
-                }}
-              >
-                <option value="teacher">Teacher</option>
-                <option value="staff">Staff</option>
-                <option value="front_office">Front Office</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: '0.5rem 1rem',
-                backgroundColor: loading ? '#ccc' : '#28a745',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontSize: '0.875rem'
-              }}
-            >
-              {loading ? 'Sending...' : 'Send Invite'}
-            </button>
           </form>
         )}
       </div>
@@ -346,111 +404,168 @@ const InvitationManagement: React.FC<InvitationManagementProps> = ({ schoolId, c
 
       {/* Invitations List */}
       {invitations.length > 0 ? (
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          border: '1px solid #dee2e6',
-          overflow: 'hidden'
-        }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Email</th>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Role</th>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Status</th>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Sent</th>
-                <th style={{ padding: '1rem', textAlign: 'left', fontWeight: 'bold' }}>Expires</th>
-                <th style={{ padding: '1rem', textAlign: 'center', fontWeight: 'bold' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invitations.map((invitation, index) => (
-                <tr
-                  key={invitation.id}
-                  style={{
-                    borderBottom: index < invitations.length - 1 ? '1px solid #dee2e6' : 'none',
-                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa'
-                  }}
-                >
-                  <td style={{ padding: '1rem' }}>
-                    <div style={{ fontWeight: 'bold' }}>
-                      {invitation.email}
+        <div className="card">
+          <div className="card-body">
+            <h3 className="m-0 mb-3">All Invitations</h3>
+
+            {/* Desktop Table */}
+            <div className="hidden-mobile table-responsive">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Permissions</th>
+                    <th>Status</th>
+                    <th>Sent</th>
+                    <th>Expires</th>
+                    <th style={{ textAlign: 'center' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invitations.map((invitation) => (
+                    <tr key={invitation.id}>
+                      <td style={{ fontWeight: 'bold' }}>
+                        {invitation.email}
+                      </td>
+                      <td>
+                        <span className="badge" style={{
+                          backgroundColor: getRoleColor(invitation.role),
+                          color: 'white'
+                        }}>
+                          {invitation.role.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap gap-xs">
+                          {invitation.permissions.slice(0, 3).map(perm => (
+                            <span key={perm} className="badge badge-info" style={{ fontSize: '0.7rem' }}>
+                              {perm.replace('_', ' ')}
+                            </span>
+                          ))}
+                          {invitation.permissions.length > 3 && (
+                            <span className="badge" style={{ backgroundColor: '#6c757d', color: 'white', fontSize: '0.7rem' }}>
+                              +{invitation.permissions.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge" style={{
+                          backgroundColor: getStatusColor(invitation.status),
+                          color: 'white'
+                        }}>
+                          {invitation.status}
+                        </span>
+                      </td>
+                      <td className="text-sm">
+                        {formatDate(invitation.createdAt)}
+                      </td>
+                      <td className="text-sm">
+                        <div style={{ color: isExpired(invitation.expiresAt) ? '#dc3545' : 'inherit' }}>
+                          {formatDate(invitation.expiresAt)}
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {invitation.status === 'pending' && !isExpired(invitation.expiresAt) && (
+                          <div className="flex gap-xs justify-center">
+                            <button
+                              onClick={() => handleResendInvitation(invitation.id, invitation.email)}
+                              disabled={loading}
+                              className="btn btn-primary btn-sm"
+                              style={{ opacity: loading ? 0.6 : 1 }}
+                            >
+                              Resend
+                            </button>
+                            <button
+                              onClick={() => handleCancelInvitation(invitation.id)}
+                              disabled={loading}
+                              className="btn btn-danger btn-sm"
+                              style={{ opacity: loading ? 0.6 : 1 }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card Layout */}
+            <div className="show-mobile-only grid gap-md">
+              {invitations.map((invitation) => (
+                <div key={invitation.id} className="card" style={{ backgroundColor: '#f8f9fa' }}>
+                  <div className="card-body">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="font-bold">{invitation.email}</div>
+                      <span className="badge" style={{
+                        backgroundColor: getStatusColor(invitation.status),
+                        color: 'white'
+                      }}>
+                        {invitation.status}
+                      </span>
                     </div>
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    <span style={{
-                      padding: '0.25rem 0.75rem',
-                      backgroundColor: getRoleColor(invitation.role),
-                      color: 'white',
-                      borderRadius: '12px',
-                      fontSize: '0.875rem',
-                      fontWeight: 'bold',
-                      textTransform: 'capitalize'
-                    }}>
-                      {invitation.role.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td style={{ padding: '1rem' }}>
-                    <span style={{
-                      padding: '0.25rem 0.75rem',
-                      backgroundColor: getStatusColor(invitation.status),
-                      color: 'white',
-                      borderRadius: '12px',
-                      fontSize: '0.875rem',
-                      fontWeight: 'bold',
-                      textTransform: 'capitalize'
-                    }}>
-                      {invitation.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}>
-                    {formatDate(invitation.createdAt)}
-                  </td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}>
-                    <div style={{ color: isExpired(invitation.expiresAt) ? '#dc3545' : 'inherit' }}>
-                      {formatDate(invitation.expiresAt)}
+
+                    <div className="flex items-center gap-sm mb-2">
+                      <span className="text-sm text-muted">Role:</span>
+                      <span className="badge" style={{
+                        backgroundColor: getRoleColor(invitation.role),
+                        color: 'white'
+                      }}>
+                        {invitation.role.replace('_', ' ')}
+                      </span>
                     </div>
-                  </td>
-                  <td style={{ padding: '1rem', textAlign: 'center' }}>
+
+                    <div className="mb-2">
+                      <div className="text-sm text-muted mb-1">Permissions:</div>
+                      <div className="flex flex-wrap gap-xs">
+                        {invitation.permissions.map(perm => (
+                          <span key={perm} className="badge badge-info" style={{ fontSize: '0.7rem' }}>
+                            {perm.replace('_', ' ')}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-2 gap-sm mb-3 text-sm text-muted">
+                      <div>
+                        <div>Sent: {formatDate(invitation.createdAt)}</div>
+                      </div>
+                      <div>
+                        <div style={{ color: isExpired(invitation.expiresAt) ? '#dc3545' : 'inherit' }}>
+                          Expires: {formatDate(invitation.expiresAt)}
+                        </div>
+                      </div>
+                    </div>
+
                     {invitation.status === 'pending' && !isExpired(invitation.expiresAt) && (
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                      <div className="flex gap-sm">
                         <button
                           onClick={() => handleResendInvitation(invitation.id, invitation.email)}
                           disabled={loading}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            backgroundColor: '#007bff',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            fontSize: '0.75rem'
-                          }}
+                          className="btn btn-primary btn-sm flex-1"
+                          style={{ opacity: loading ? 0.6 : 1 }}
                         >
                           Resend
                         </button>
                         <button
                           onClick={() => handleCancelInvitation(invitation.id)}
                           disabled={loading}
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            backgroundColor: '#dc3545',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: loading ? 'not-allowed' : 'pointer',
-                            fontSize: '0.75rem'
-                          }}
+                          className="btn btn-danger btn-sm flex-1"
+                          style={{ opacity: loading ? 0.6 : 1 }}
                         >
                           Cancel
                         </button>
                       </div>
                     )}
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+          </div>
         </div>
       ) : (
         <div style={{
