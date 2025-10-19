@@ -9,6 +9,7 @@ const DashboardPage: React.FC = () => {
   const { userProfile } = useAuth();
   const [todaysLane, setTodaysLane] = useState<Lane | null>(null);
   const [dismissals, setDismissals] = useState<Dismissal[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Load today's lane configuration
@@ -74,9 +75,73 @@ const DashboardPage: React.FC = () => {
     return () => unsubscribe();
   }, [userProfile?.schoolId]);
 
+  // Load students for student name display
+  const loadStudents = useCallback(async () => {
+    if (!userProfile?.schoolId) return;
+
+    try {
+      const studentsCollection = collection(db, 'schools', userProfile.schoolId, 'students');
+      const studentsSnapshot = await getDocs(studentsCollection);
+      const studentsData: Student[] = [];
+
+      studentsSnapshot.forEach((doc) => {
+        studentsData.push({ id: doc.id, ...doc.data() } as Student);
+      });
+
+      setStudents(studentsData);
+    } catch (error) {
+      console.error('Error loading students:', error);
+    }
+  }, [userProfile?.schoolId]);
+
+  // Handle status transitions
+  const handleSendToCone = async (dismissalId: string) => {
+    if (!userProfile?.schoolId) return;
+
+    try {
+      const dismissalDoc = doc(db, 'schools', userProfile.schoolId, 'dismissals', dismissalId);
+      await updateDoc(dismissalDoc, {
+        status: 'at_cone',
+        updatedAt: Timestamp.now()
+      });
+    } catch (error) {
+      console.error('Error updating dismissal status:', error);
+      setError('Failed to update status. Please try again.');
+    }
+  };
+
+  const handleCarLoaded = async (dismissalId: string) => {
+    if (!userProfile?.schoolId) return;
+
+    try {
+      const dismissalDoc = doc(db, 'schools', userProfile.schoolId, 'dismissals', dismissalId);
+      await updateDoc(dismissalDoc, {
+        status: 'dismissed',
+        updatedAt: Timestamp.now()
+      });
+    } catch (error) {
+      console.error('Error updating dismissal status:', error);
+      setError('Failed to update status. Please try again.');
+    }
+  };
+
+  const getStudentNamesForDismissal = (dismissal: Dismissal): string[] => {
+    return dismissal.studentIds.map(studentId => {
+      const student = students.find(s => s.id === studentId);
+      if (student) {
+        const displayName = student.lastInitial
+          ? `${student.firstName} ${student.lastInitial}.`
+          : `${student.firstName} ${student.lastName?.charAt(0) || ''}.`;
+        return displayName;
+      }
+      return 'Unknown Student';
+    });
+  };
+
   useEffect(() => {
     loadTodaysLane();
-  }, [loadTodaysLane]);
+    loadStudents();
+  }, [loadTodaysLane, loadStudents]);
 
 
   const getQueueForCone = (coneNumber: number): Dismissal[] => {
@@ -126,11 +191,14 @@ const DashboardPage: React.FC = () => {
       {/* Cone Queue Section */}
       {todaysLane && (
         <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ marginBottom: '1rem' }}>Cone Queues</h2>
+          <h2 style={{ marginBottom: '1rem' }}>Cone Management</h2>
           <ConeQueue
             coneCount={todaysLane.coneCount}
             dismissals={dismissals}
             getQueueForCone={getQueueForCone}
+            onSendToCone={handleSendToCone}
+            onCarLoaded={handleCarLoaded}
+            getStudentNames={getStudentNamesForDismissal}
           />
         </div>
       )}

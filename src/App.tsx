@@ -12,6 +12,7 @@ import CheckInPage from './pages/CheckInPage';
 import OverridesPage from './pages/OverridesPage';
 import AdminPage from './pages/AdminPage';
 import TeacherSetupPage from './pages/TeacherSetupPage';
+import AcceptInvitePage from './pages/AcceptInvitePage';
 import './App.css';
 
 const ProtectedPageLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -28,6 +29,7 @@ const App: React.FC = () => (
         <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<SchoolRegistrationPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/accept-invite" element={<AcceptInvitePage />} />
         <Route
           path="/car-lookup"
           element={

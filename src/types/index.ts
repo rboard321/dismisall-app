@@ -148,3 +148,17 @@ export interface QRScanResult {
   carNumber?: string;
   isValid: boolean;
 }
+
+// User invitation types
+export interface UserInvitation {
+  id: string;
+  email: string;
+  role: UserRole;
+  schoolId: string;
+  invitedBy: string; // user uid who sent the invitation
+  status: 'pending' | 'accepted' | 'expired';
+  expiresAt: Timestamp;
+  createdAt: Timestamp;
+  acceptedAt?: Timestamp;
+  inviteToken: string; // unique token for the invitation link
+}

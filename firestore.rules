@@ -30,22 +30,54 @@ service cloud.firestore {
         return hasRole('admin') || hasRole('teacher') || hasRole('staff');
       }
 
+      // Helper function to validate dismissal status transitions
+      function isValidStatusTransition() {
+        let oldStatus = resource.data.status;
+        let newStatus = request.resource.data.status;
+
+        // Allow valid transitions: waiting → at_cone → dismissed
+        return (oldStatus == 'waiting' && newStatus == 'at_cone') ||
+               (oldStatus == 'at_cone' && newStatus == 'dismissed') ||
+               (oldStatus != 'historical' && newStatus == 'historical'); // Allow marking as historical
+      }
+
+      // Helper function to check if school has active subscription
+      function hasActiveSubscription() {
+        let school = get(/databases/$(database)/documents/schools/$(schoolId));
+        let status = school.data.subscriptionStatus;
+        let trialEnd = school.data.trialEndsAt;
+
+        return status == 'active' ||
+               (status == 'trial' && trialEnd > request.time);
+      }
+
+      // Helper function to validate required fields in dismissal
+      function isValidDismissal() {
+        let data = request.resource.data;
+        return data.keys().hasAll(['carNumber', 'studentIds', 'coneNumber', 'dismissedBy', 'dismissedAt', 'status']) &&
+               data.carNumber is string &&
+               data.studentIds is list &&
+               data.coneNumber is number &&
+               data.dismissedBy is string &&
+               data.status in ['waiting', 'at_cone', 'dismissed', 'historical'];
+      }
+
       // Students collection
       match /students/{studentId} {
-        allow read: if belongsToSchool();
-        allow create, update, delete: if belongsToSchool() && canManageData();
+        allow read: if belongsToSchool() && hasActiveSubscription();
+        allow create, update, delete: if belongsToSchool() && canManageData() && hasActiveSubscription();
       }
 
       // Cars collection
       match /cars/{carId} {
-        allow read: if belongsToSchool();
-        allow create, update, delete: if belongsToSchool() && canManageData();
+        allow read: if belongsToSchool() && hasActiveSubscription();
+        allow create, update, delete: if belongsToSchool() && canManageData() && hasActiveSubscription();
       }
 
       // Overrides collection
       match /overrides/{overrideId} {
-        allow read: if belongsToSchool();
-        allow create, update, delete: if belongsToSchool() && canManageData();
+        allow read: if belongsToSchool() && hasActiveSubscription();
+        allow create, update, delete: if belongsToSchool() && canManageData() && hasActiveSubscription();
       }
 
       // Lanes collection
@@ -56,14 +88,41 @@ service cloud.firestore {
 
       // Dismissals collection
       match /dismissals/{dismissalId} {
-        allow read: if belongsToSchool();
-        allow create: if belongsToSchool() && canDismiss();
-        allow update, delete: if belongsToSchool() && hasRole('admin');
+        allow read: if belongsToSchool() && hasActiveSubscription();
+        allow create: if belongsToSchool() && canDismiss() && hasActiveSubscription() && isValidDismissal();
+        allow delete: if belongsToSchool() && hasRole('admin') && hasActiveSubscription();
+
+        // Allow status updates for 3-stage workflow (waiting → at_cone → dismissed)
+        allow update: if belongsToSchool() && hasActiveSubscription() && (
+          hasRole('admin') ||
+          (canDismiss() && isValidStatusTransition())
+        );
       }
 
       // School configuration (admin only)
       allow read: if belongsToSchool();
       allow write: if belongsToSchool() && hasRole('admin');
+    }
+
+    // Invitations collection (global, not under schools)
+    match /invitations/{invitationId} {
+      // Only admins can create/read invitations for their school
+      allow read, create: if request.auth != null &&
+        hasRole('admin') &&
+        resource.data.schoolId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId;
+
+      // Allow reading invitation by token for acceptance (public access)
+      allow read: if resource.data.inviteToken == request.query.token;
+
+      // Allow updating invitation status when accepting (by email match)
+      allow update: if request.auth != null &&
+        resource.data.email == request.auth.token.email &&
+        request.resource.data.status == 'accepted';
+
+      // Only admins can cancel invitations
+      allow update: if request.auth != null &&
+        hasRole('admin') &&
+        resource.data.schoolId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId;
     }
 
     // Deny all other access

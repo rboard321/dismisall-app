@@ -20,7 +20,7 @@ interface CarLookupResult {
 
 const CarLookupPage: React.FC = () => {
   const { userProfile } = useAuth();
-  const [carList, setCarList] = useState<CarLookupResult[]>([]);
+  const [todaysDismissals, setTodaysDismissals] = useState<Dismissal[]>([]);
   const [todaysLane, setTodaysLane] = useState<Lane | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,7 +61,7 @@ const CarLookupPage: React.FC = () => {
     loadTodaysLane();
   }, [loadTodaysLane]);
 
-  // Subscribe to real-time dismissal updates to remove dismissed cars
+  // Subscribe to real-time dismissal updates
   useEffect(() => {
     if (!userProfile?.schoolId) return;
 
@@ -71,25 +71,25 @@ const CarLookupPage: React.FC = () => {
     tomorrow.setDate(tomorrow.getDate() + 1);
 
     const dismissalsCollection = collection(db, 'schools', userProfile.schoolId, 'dismissals');
+    const q = query(
+      dismissalsCollection,
+      where('dismissedAt', '>=', Timestamp.fromDate(today)),
+      where('dismissedAt', '<', Timestamp.fromDate(tomorrow))
+    );
 
-    // Listen for dismissal changes
-    const unsubscribe = onSnapshot(dismissalsCollection, (snapshot) => {
-      const dismissedCarNumbers = new Set<string>();
+    // Listen for dismissal changes with optimized server-side filtering
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const todaysData: Dismissal[] = [];
 
       snapshot.forEach((doc) => {
-        const dismissal = doc.data();
-        const dismissedAt = dismissal.dismissedAt.toDate ? dismissal.dismissedAt.toDate() : new Date(dismissal.dismissedAt as any);
-
-        // If dismissal is from today and status is dismissed (not historical), track the car
-        if (dismissedAt >= today && dismissedAt < tomorrow && dismissal.status === 'dismissed') {
-          dismissedCarNumbers.add(dismissal.carNumber);
+        const dismissal = { id: doc.id, ...doc.data() } as Dismissal;
+        // Only include non-historical dismissals (date already filtered server-side)
+        if (dismissal.status !== 'historical') {
+          todaysData.push(dismissal);
         }
       });
 
-      // Remove dismissed cars from our lookup list
-      setCarList(prev =>
-        prev.filter(car => !dismissedCarNumbers.has(car.carNumber))
-      );
+      setTodaysDismissals(todaysData);
     });
 
     return () => unsubscribe();
@@ -152,25 +152,7 @@ const CarLookupPage: React.FC = () => {
       }
 
       if (students.length === 0) {
-        const newResult: CarLookupResult = {
-          carNumber,
-          students: [],
-          coneNumber: 0,
-          status: 'no_students',
-          timestamp: new Date()
-        };
-
-        // Add to list if not already present
-        setCarList(prev => {
-          const existingIndex = prev.findIndex(car => car.carNumber === carNumber);
-          if (existingIndex >= 0) {
-            const updated = [...prev];
-            updated[existingIndex] = newResult;
-            return updated;
-          } else {
-            return [...prev, newResult];
-          }
-        });
+        setError(`No students found for car ${carNumber}`);
         return;
       }
 
@@ -200,32 +182,7 @@ const CarLookupPage: React.FC = () => {
       });
 
       if (todaysDismissal) {
-        const newResult: CarLookupResult = {
-          carNumber,
-          students: students.map(s => ({
-            id: s.id,
-            displayName: `${s.firstName} ${s.lastInitial || (s.lastName ? s.lastName.charAt(0).toUpperCase() : '')}.`,
-            grade: s.grade,
-            isOverride: overrideStudentIds.includes(s.id)
-          })),
-          coneNumber: todaysDismissal.coneNumber,
-          status: 'already_dismissed',
-          timestamp: new Date()
-        };
-
-        // Add to list if not already present
-        setCarList(prev => {
-          const existingIndex = prev.findIndex(car => car.carNumber === carNumber);
-          if (existingIndex >= 0) {
-            // Update existing entry
-            const updated = [...prev];
-            updated[existingIndex] = newResult;
-            return updated;
-          } else {
-            // Add new entry
-            return [...prev, newResult];
-          }
-        });
+        setError(`Car ${carNumber} is already processed today (Cone ${todaysDismissal.coneNumber})`);
         return;
       }
 
@@ -244,7 +201,7 @@ const CarLookupPage: React.FC = () => {
 
         setTodaysLane(prev => prev ? { ...prev, currentPointer: nextPointer } : null);
 
-        // Record the car assignment (but not dismissed yet)
+        // Record the car assignment to Firestore with waiting status
         await addDoc(dismissalsCollection, {
           carNumber,
           studentIds: students.map(s => s.id),
@@ -253,32 +210,11 @@ const CarLookupPage: React.FC = () => {
           dismissedAt: Timestamp.now(),
           status: 'waiting'
         });
+
+        // Clear error and show success
+        setError(null);
+        // The real-time subscription will automatically update the display
       }
-
-      const newResult: CarLookupResult = {
-        carNumber,
-        students: students.map(s => ({
-          id: s.id,
-          displayName: `${s.firstName} ${s.lastInitial || (s.lastName ? s.lastName.charAt(0).toUpperCase() : '')}.`,
-          grade: s.grade,
-          isOverride: overrideStudentIds.includes(s.id)
-        })),
-        coneNumber,
-        status: 'success',
-        timestamp: new Date()
-      };
-
-      // Add to list if not already present
-      setCarList(prev => {
-        const existingIndex = prev.findIndex(car => car.carNumber === carNumber);
-        if (existingIndex >= 0) {
-          const updated = [...prev];
-          updated[existingIndex] = newResult;
-          return updated;
-        } else {
-          return [...prev, newResult];
-        }
-      });
 
     } catch (error) {
       console.error('Error looking up car:', error);
@@ -288,13 +224,42 @@ const CarLookupPage: React.FC = () => {
     }
   };
 
-  const handleClearCar = (carNumber: string) => {
-    setCarList(prev => prev.filter(car => car.carNumber !== carNumber));
+  const handleRemoveCar = async (dismissalId: string) => {
+    if (!userProfile?.schoolId) return;
+
+    if (window.confirm('Remove this car from the queue?')) {
+      try {
+        const dismissalDoc = doc(db, 'schools', userProfile.schoolId, 'dismissals', dismissalId);
+        await updateDoc(dismissalDoc, {
+          status: 'historical',
+          resetAt: Timestamp.now()
+        });
+      } catch (error) {
+        console.error('Error removing car:', error);
+        setError('Failed to remove car. Please try again.');
+      }
+    }
   };
 
-  const handleClearAll = () => {
-    if (window.confirm('Clear all cars from the list?')) {
-      setCarList([]);
+  const handleClearAll = async () => {
+    if (!userProfile?.schoolId) return;
+
+    if (window.confirm('Clear all cars from the queue?')) {
+      try {
+        const waitingCars = todaysDismissals.filter(d => d.status === 'waiting');
+        const updatePromises = waitingCars.map(dismissal => {
+          const dismissalDoc = doc(db, 'schools', userProfile.schoolId!, 'dismissals', dismissal.id);
+          return updateDoc(dismissalDoc, {
+            status: 'historical',
+            resetAt: Timestamp.now()
+          });
+        });
+
+        await Promise.all(updatePromises);
+      } catch (error) {
+        console.error('Error clearing cars:', error);
+        setError('Failed to clear cars. Please try again.');
+      }
     }
   };
 
@@ -340,8 +305,8 @@ const CarLookupPage: React.FC = () => {
         disabled={loading}
       />
 
-      {/* Car List */}
-      {carList.length > 0 && (
+      {/* Today's Queue */}
+      {todaysDismissals.filter(d => d.status === 'waiting').length > 0 && (
         <div style={{ marginTop: '2rem' }}>
           <div style={{
             display: 'flex',
@@ -349,7 +314,9 @@ const CarLookupPage: React.FC = () => {
             alignItems: 'center',
             marginBottom: '1rem'
           }}>
-            <h3 style={{ margin: 0 }}>Today's Cars ({carList.length})</h3>
+            <h3 style={{ margin: 0 }}>
+              Today's Queue ({todaysDismissals.filter(d => d.status === 'waiting').length})
+            </h3>
             <button
               onClick={handleClearAll}
               style={{
@@ -373,9 +340,11 @@ const CarLookupPage: React.FC = () => {
             flexDirection: 'column',
             gap: '0.75rem'
           }}>
-            {carList.map((car) => (
+            {todaysDismissals
+              .filter(dismissal => dismissal.status === 'waiting')
+              .map((dismissal) => (
               <div
-                key={car.carNumber}
+                key={dismissal.id}
                 style={{
                   padding: '1rem',
                   backgroundColor: 'white',
@@ -391,47 +360,21 @@ const CarLookupPage: React.FC = () => {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <h4 style={{ margin: 0, fontSize: '1.25rem' }}>
-                      Car {car.carNumber}
+                      Car {dismissal.carNumber}
                     </h4>
-                    {car.status === 'success' && car.coneNumber > 0 && (
-                      <span style={{
-                        padding: '0.25rem 0.75rem',
-                        backgroundColor: '#28a745',
-                        color: 'white',
-                        borderRadius: '12px',
-                        fontSize: '0.875rem',
-                        fontWeight: 'bold'
-                      }}>
-                        Cone {car.coneNumber}
-                      </span>
-                    )}
-                    {car.status === 'already_dismissed' && (
-                      <span style={{
-                        padding: '0.25rem 0.75rem',
-                        backgroundColor: '#17a2b8',
-                        color: 'white',
-                        borderRadius: '12px',
-                        fontSize: '0.875rem',
-                        fontWeight: 'bold'
-                      }}>
-                        Already at Cone {car.coneNumber}
-                      </span>
-                    )}
-                    {car.status === 'no_students' && (
-                      <span style={{
-                        padding: '0.25rem 0.75rem',
-                        backgroundColor: '#ffc107',
-                        color: '#212529',
-                        borderRadius: '12px',
-                        fontSize: '0.875rem',
-                        fontWeight: 'bold'
-                      }}>
-                        No Students
-                      </span>
-                    )}
+                    <span style={{
+                      padding: '0.25rem 0.75rem',
+                      backgroundColor: '#ffc107',
+                      color: '#212529',
+                      borderRadius: '12px',
+                      fontSize: '0.875rem',
+                      fontWeight: 'bold'
+                    }}>
+                      → Cone {dismissal.coneNumber}
+                    </span>
                   </div>
                   <button
-                    onClick={() => handleClearCar(car.carNumber)}
+                    onClick={() => handleRemoveCar(dismissal.id)}
                     style={{
                       padding: '0.25rem 0.5rem',
                       backgroundColor: '#6c757d',
@@ -446,17 +389,9 @@ const CarLookupPage: React.FC = () => {
                   </button>
                 </div>
 
-                {car.students.length > 0 && (
-                  <div style={{ fontSize: '0.875rem', color: '#666' }}>
-                    {car.students.map((student, index) => (
-                      <span key={student.id}>
-                        {student.displayName}
-                        {student.isOverride && ' (Override)'}
-                        {index < car.students.length - 1 ? ', ' : ''}
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div style={{ fontSize: '0.875rem', color: '#666' }}>
+                  {dismissal.studentIds.length} student{dismissal.studentIds.length !== 1 ? 's' : ''} assigned
+                </div>
               </div>
             ))}
           </div>
@@ -475,14 +410,14 @@ const CarLookupPage: React.FC = () => {
       }}>
         <strong>📝 How to use:</strong>
         <ol style={{ marginTop: '0.5rem', marginBottom: 0, paddingLeft: '1.5rem' }}>
-          <li>Enter car numbers one by one - each car gets added to the list below</li>
-          <li>See students and cone assignments for each car in the scrollable list</li>
-          <li>Direct cars to their assigned cones</li>
-          <li>Cars automatically disappear when dismissed at the cones</li>
+          <li>Enter car numbers one by one - each car gets added to the queue below</li>
+          <li>Cars are automatically assigned cone numbers</li>
+          <li>Queue persists when navigating between pages</li>
+          <li>Cars disappear when processed at the Management page</li>
           <li>Use "Clear All" or individual "✕" buttons to remove cars manually</li>
         </ol>
         <div style={{ marginTop: '0.75rem', padding: '0.5rem', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '4px' }}>
-          <strong>💡 Tip:</strong> Keep entering car numbers as they arrive - the list will build up throughout the day and automatically clean itself as cars are dismissed!
+          <strong>💡 Tip:</strong> The queue is shared in real-time across all devices and pages!
         </div>
       </div>
     </div>

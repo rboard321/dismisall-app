@@ -17,10 +17,12 @@ import { User, Student, Dismissal, Lane, DismissalSummary, UserRole } from '../t
 import ConeConfiguration from '../components/ConeConfiguration';
 import UserManagement from '../components/UserManagement';
 import DismissalReports from '../components/DismissalReports';
+import InvitationManagement from '../components/InvitationManagement';
+import SubscriptionManagement from '../components/SubscriptionManagement';
 
 const AdminPage: React.FC = () => {
-  const { userProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'daily' | 'users' | 'reports'>('daily');
+  const { userProfile, schoolProfile } = useAuth();
+  const [activeTab, setActiveTab] = useState<'daily' | 'users' | 'invitations' | 'billing' | 'reports'>('daily');
   const [todaysLane, setTodaysLane] = useState<Lane | null>(null);
   const [todaysDismissals, setTodaysDismissals] = useState<Dismissal[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -117,6 +119,13 @@ const AdminPage: React.FC = () => {
       console.error('Error loading users:', error);
     }
   }, [userProfile?.schoolId]);
+
+  // Reload school data (for subscription updates)
+  const reloadSchoolData = useCallback(async () => {
+    // This would trigger a reload of the school profile in the AuthContext
+    // For now, we'll just reload the page data
+    window.location.reload();
+  }, []);
 
   useEffect(() => {
     loadTodaysLane();
@@ -249,6 +258,8 @@ const AdminPage: React.FC = () => {
   const tabs = [
     { id: 'daily', label: 'Daily Management', icon: '📋' },
     { id: 'users', label: 'User Management', icon: '👥' },
+    { id: 'invitations', label: 'Invitations', icon: '✉️' },
+    { id: 'billing', label: 'Billing & Subscription', icon: '💳' },
     { id: 'reports', label: 'Reports & Analytics', icon: '📊' }
   ] as const;
 
@@ -406,6 +417,38 @@ const AdminPage: React.FC = () => {
             onRoleUpdate={handleUserRoleUpdate}
             loading={loading}
           />
+        </div>
+      )}
+
+      {activeTab === 'invitations' && (
+        <div>
+          <h2>Invitation Management</h2>
+          <p style={{ color: '#666', marginBottom: '2rem' }}>
+            Invite new team members to join your school. They'll receive an invitation link to sign up and will be automatically assigned to your school with the specified role.
+          </p>
+          <InvitationManagement
+            schoolId={userProfile.schoolId}
+            currentUserUid={userProfile.uid}
+          />
+        </div>
+      )}
+
+      {activeTab === 'billing' && (
+        <div>
+          <h2>Billing & Subscription</h2>
+          <p style={{ color: '#666', marginBottom: '2rem' }}>
+            Manage your subscription, billing information, and payment settings. Upgrade or downgrade your plan at any time.
+          </p>
+          {schoolProfile ? (
+            <SubscriptionManagement
+              school={schoolProfile}
+              onSchoolUpdate={reloadSchoolData}
+            />
+          ) : (
+            <div style={{ textAlign: 'center', padding: '3rem', color: '#666' }}>
+              <h3>Loading subscription information...</h3>
+            </div>
+          )}
         </div>
       )}
 
