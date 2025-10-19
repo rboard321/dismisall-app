@@ -65,11 +65,7 @@ const ConeQueue: React.FC<ConeQueueProps> = ({
   };
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: `repeat(${Math.min(coneCount, 2)}, 1fr)`,
-      gap: '1rem'
-    }}>
+    <div className={`grid gap-md ${coneCount > 2 ? 'grid-auto-fit-md' : 'grid-2-mobile-1'}`}>
       {Array.from({ length: coneCount }, (_, index) => {
         const coneNumber = index + 1;
         const coneQueue = getAllCarsForCone(coneNumber);
@@ -80,44 +76,21 @@ const ConeQueue: React.FC<ConeQueueProps> = ({
         return (
           <div
             key={coneNumber}
-            style={{
-              backgroundColor: 'white',
-              border: '1px solid #dee2e6',
-              borderRadius: '8px',
-              padding: '1rem'
-            }}
+            className="card"
           >
             {/* Cone Header */}
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1rem',
-              paddingBottom: '0.5rem',
-              borderBottom: '1px solid #eee'
-            }}>
-              <h4 style={{
-                margin: 0,
-                fontSize: '1.125rem',
-                color: '#333'
-              }}>
+            <div className="card-header flex justify-between items-center">
+              <h4 className="text-lg font-semibold m-0">
                 🔴 Cone {coneNumber}
               </h4>
-              <div style={{
-                fontSize: '0.875rem',
-                color: '#666'
-              }}>
+              <div className="text-sm text-muted">
                 {coneQueue.length} cars
               </div>
             </div>
 
             {/* Status Summary */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '0.5rem',
-              marginBottom: '1rem'
-            }}>
+            <div className="card-body">
+            <div className="grid grid-3 gap-sm mb-3">
               <div style={{
                 textAlign: 'center',
                 padding: '0.5rem',
@@ -162,7 +135,7 @@ const ConeQueue: React.FC<ConeQueueProps> = ({
             </div>
 
             {/* 3-Stage Workflow */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div className="flex flex-col gap-md">
 
               {/* WAITING Section */}
               {getCarsByStatus(coneNumber, 'waiting').length > 0 && (
@@ -198,17 +171,8 @@ const ConeQueue: React.FC<ConeQueueProps> = ({
                             <button
                               onClick={() => handleSendToCone(dismissal.id)}
                               disabled={loadingStates[dismissal.id]}
-                              style={{
-                                padding: '0.375rem 0.75rem',
-                                backgroundColor: '#17a2b8',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                fontWeight: 'bold',
-                                cursor: loadingStates[dismissal.id] ? 'not-allowed' : 'pointer',
-                                opacity: loadingStates[dismissal.id] ? 0.6 : 1
-                              }}
+                              className="btn btn-info btn-sm"
+                              style={{ opacity: loadingStates[dismissal.id] ? 0.6 : 1 }}
                             >
                               {loadingStates[dismissal.id] ? '⏳' : '▶️ Send to Cone'}
                             </button>
@@ -253,17 +217,8 @@ const ConeQueue: React.FC<ConeQueueProps> = ({
                             <button
                               onClick={() => handleCarLoaded(dismissal.id)}
                               disabled={loadingStates[dismissal.id]}
-                              style={{
-                                padding: '0.375rem 0.75rem',
-                                backgroundColor: '#28a745',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                fontWeight: 'bold',
-                                cursor: loadingStates[dismissal.id] ? 'not-allowed' : 'pointer',
-                                opacity: loadingStates[dismissal.id] ? 0.6 : 1
-                              }}
+                              className="btn btn-success btn-sm"
+                              style={{ opacity: loadingStates[dismissal.id] ? 0.6 : 1 }}
                             >
                               {loadingStates[dismissal.id] ? '⏳' : '✅ Car Loaded'}
                             </button>
@@ -335,6 +290,7 @@ const ConeQueue: React.FC<ConeQueueProps> = ({
                   No cars assigned to this cone yet
                 </div>
               )}
+            </div>
             </div>
           </div>
         );

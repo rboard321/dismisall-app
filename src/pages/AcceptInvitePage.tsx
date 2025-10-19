@@ -79,8 +79,8 @@ const AcceptInvitePage: React.FC = () => {
     try {
       setLoading(true);
 
-      // Update user profile with school and role
-      await updateUserRole(currentUser.uid, invitation.role, invitation.schoolId);
+      // Update user profile with school, role, and permissions
+      await updateUserRole(currentUser.uid, invitation.role, invitation.schoolId, invitation.permissions);
 
       // Mark invitation as accepted
       const invitationDoc = doc(db, 'invitations', invitation.id);

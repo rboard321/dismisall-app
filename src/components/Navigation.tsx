@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { PagePermission } from '../types';
 
 const Navigation: React.FC = () => {
   const navigate = useNavigate();
@@ -14,37 +15,37 @@ const Navigation: React.FC = () => {
       path: '/car-lookup',
       label: 'Car Lookup',
       icon: '🔍',
-      allowedRoles: ['admin', 'teacher', 'staff']
+      requiredPermission: 'CAR_LOOKUP' as PagePermission
     },
     {
       path: '/dashboard',
       label: 'Management',
       icon: '📊',
-      allowedRoles: ['admin', 'teacher', 'staff']
+      requiredPermission: 'MANAGEMENT' as PagePermission
     },
     {
       path: '/checkin',
       label: 'Students',
       icon: '👥',
-      allowedRoles: ['admin', 'front_office', 'teacher', 'staff']
+      requiredPermission: 'CHECKIN' as PagePermission
     },
     {
       path: '/overrides',
       label: 'Overrides',
       icon: '🔄',
-      allowedRoles: ['admin', 'front_office']
+      requiredPermission: 'OVERRIDES' as PagePermission
     },
     {
       path: '/setup',
       label: 'Setup',
       icon: '🔧',
-      allowedRoles: ['admin', 'teacher', 'staff']
+      requiredPermission: 'SETUP' as PagePermission
     },
     {
       path: '/admin',
       label: 'Admin',
       icon: '⚙️',
-      allowedRoles: ['admin']
+      requiredPermission: 'ADMIN' as PagePermission
     }
   ];
 
@@ -55,76 +56,99 @@ const Navigation: React.FC = () => {
     }
   };
 
-  const filteredNavItems = navItems.filter(item =>
-    item.allowedRoles.includes(userProfile.role)
-  );
+  const filteredNavItems = navItems.filter(item => {
+    // Admin users always have access to everything
+    if (userProfile.role === 'admin') {
+      return true;
+    }
+
+    // Check if user has the required permission
+    const userPermissions = userProfile.permissions || [];
+    return userPermissions.includes(item.requiredPermission);
+  });
 
   return (
-    <nav style={{
-      backgroundColor: '#343a40',
-      padding: '0.75rem 1rem',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: '1rem'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-        <h1 style={{
-          color: 'white',
-          margin: 0,
-          fontSize: '1.25rem'
-        }}>
+    <nav
+      style={{ backgroundColor: '#343a40' }}
+      className="p-3 flex justify-between items-center flex-wrap gap-md"
+    >
+      <div className="flex items-center gap-md">
+        <h1 className="text-xl font-semibold m-0" style={{ color: 'white' }}>
           🚸 Dismissal App
         </h1>
 
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {/* Desktop Navigation */}
+        <div className="hidden-mobile flex gap-sm">
           {filteredNavItems.map(item => (
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
+              className={`btn btn-sm ${location.pathname === item.path ? 'btn-primary' : ''}`}
               style={{
-                padding: '0.5rem 1rem',
                 backgroundColor: location.pathname === item.path ? '#007bff' : 'transparent',
                 color: 'white',
-                border: location.pathname === item.path ? '1px solid #007bff' : '1px solid transparent',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '0.875rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem'
+                border: location.pathname === item.path ? '1px solid #007bff' : '1px solid transparent'
               }}
             >
               <span>{item.icon}</span>
-              <span>{item.label}</span>
+              <span className="hidden-mobile">{item.label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <div style={{ color: '#adb5bd', fontSize: '0.875rem' }}>
+      <div className="flex items-center gap-md">
+        <div className="text-sm hidden-mobile" style={{ color: '#adb5bd' }}>
           <div>{userProfile.displayName || userProfile.email}</div>
-          <div style={{ fontSize: '0.75rem', textTransform: 'capitalize' }}>
+          <div className="text-xs" style={{ textTransform: 'capitalize' }}>
             {userProfile.role.replace('_', ' ')}
           </div>
         </div>
 
         <button
           onClick={handleLogout}
-          style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: '#dc3545',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '0.875rem'
-          }}
+          className="btn btn-danger btn-sm"
         >
-          Logout
+          <span className="show-mobile-only">👋</span>
+          <span className="hidden-mobile">Logout</span>
         </button>
+      </div>
+
+      {/* Mobile Navigation - Bottom tabs style */}
+      <div className="show-mobile-only" style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#343a40',
+        borderTop: '1px solid #495057',
+        padding: '0.5rem',
+        zIndex: 1000
+      }}>
+        <div className="grid gap-xs" style={{
+          gridTemplateColumns: `repeat(${Math.min(filteredNavItems.length, 5)}, 1fr)`
+        }}>
+          {filteredNavItems.map(item => (
+            <button
+              key={item.path}
+              onClick={() => navigate(item.path)}
+              className="btn btn-sm text-center"
+              style={{
+                backgroundColor: location.pathname === item.path ? '#007bff' : 'transparent',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '0.5rem 0.25rem',
+                flexDirection: 'column',
+                fontSize: '0.75rem',
+                minHeight: '60px'
+              }}
+            >
+              <div style={{ fontSize: '1.2rem', marginBottom: '0.25rem' }}>{item.icon}</div>
+              <div style={{ fontSize: '0.6rem', lineHeight: 1 }}>{item.label}</div>
+            </button>
+          ))}
+        </div>
       </div>
     </nav>
   );

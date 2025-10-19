@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User as FirebaseUser, onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { User, UserRole, School } from '../types';
+import { User, UserRole, School, PagePermission } from '../types';
 
 interface AuthContextType {
   currentUser: FirebaseUser | null;
@@ -10,7 +10,7 @@ interface AuthContextType {
   schoolProfile: School | null;
   loading: boolean;
   logout: () => Promise<void>;
-  updateUserRole: (uid: string, role: UserRole, schoolId: string) => Promise<void>;
+  updateUserRole: (uid: string, role: UserRole, schoolId: string, permissions?: PagePermission[]) => Promise<void>;
   isTrialExpired: boolean;
   isSubscriptionActive: boolean;
 }
@@ -29,6 +29,22 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
+// Helper function to get default permissions based on role
+const getDefaultPermissions = (role: UserRole): PagePermission[] => {
+  switch (role) {
+    case 'admin':
+      return ['CAR_LOOKUP', 'MANAGEMENT', 'ADMIN', 'CHECKIN', 'OVERRIDES', 'SETUP', 'REPORTS'];
+    case 'teacher':
+      return ['CAR_LOOKUP', 'MANAGEMENT', 'SETUP'];
+    case 'staff':
+      return ['CAR_LOOKUP', 'MANAGEMENT'];
+    case 'front_office':
+      return ['CHECKIN', 'OVERRIDES', 'REPORTS'];
+    default:
+      return [];
+  }
+};
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<User | null>(null);
@@ -39,14 +55,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await signOut(auth);
   };
 
-  const updateUserRole = async (uid: string, role: UserRole, schoolId: string) => {
+  const updateUserRole = async (uid: string, role: UserRole, schoolId: string, permissions?: PagePermission[]) => {
     const userDoc = doc(db, 'users', uid);
+    const finalPermissions = permissions || getDefaultPermissions(role);
+
     await setDoc(userDoc, {
       uid,
       email: currentUser?.email || '',
       displayName: currentUser?.displayName || '',
       role,
       schoolId,
+      permissions: finalPermissions,
       createdAt: Timestamp.now(),
       lastLogin: Timestamp.now()
     }, { merge: true });
@@ -77,6 +96,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       if (userSnap.exists()) {
         const userData = userSnap.data() as User;
+
+        // Ensure permissions exist, add defaults if missing
+        if (!userData.permissions) {
+          userData.permissions = getDefaultPermissions(userData.role);
+          // Update the user document with default permissions
+          await setDoc(userDoc, {
+            permissions: userData.permissions
+          }, { merge: true });
+        }
+
         setUserProfile(userData);
 
         // Load school profile if user has schoolId

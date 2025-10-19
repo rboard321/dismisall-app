@@ -1,12 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { UserInvitation, UserRole } from '../types';
+import { UserInvitation, UserRole, PagePermission } from '../types';
 
 interface InvitationManagementProps {
   schoolId: string;
   currentUserUid: string;
 }
+
+// Helper function to get default permissions based on role
+const getDefaultPermissions = (role: UserRole): PagePermission[] => {
+  switch (role) {
+    case 'admin':
+      return ['CAR_LOOKUP', 'MANAGEMENT', 'ADMIN', 'CHECKIN', 'OVERRIDES', 'SETUP', 'REPORTS'];
+    case 'teacher':
+      return ['CAR_LOOKUP', 'MANAGEMENT', 'SETUP'];
+    case 'staff':
+      return ['CAR_LOOKUP', 'MANAGEMENT'];
+    case 'front_office':
+      return ['CHECKIN', 'OVERRIDES', 'REPORTS'];
+    default:
+      return [];
+  }
+};
 
 const InvitationManagement: React.FC<InvitationManagementProps> = ({ schoolId, currentUserUid }) => {
   const [invitations, setInvitations] = useState<UserInvitation[]>([]);
@@ -14,7 +30,8 @@ const InvitationManagement: React.FC<InvitationManagementProps> = ({ schoolId, c
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [inviteFormData, setInviteFormData] = useState({
     email: '',
-    role: 'teacher' as UserRole
+    role: 'teacher' as UserRole,
+    permissions: [] as PagePermission[]
   });
 
   // Load existing invitations
@@ -72,9 +89,14 @@ const InvitationManagement: React.FC<InvitationManagementProps> = ({ schoolId, c
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7); // 7 days expiration
 
+      const permissions = inviteFormData.permissions.length > 0
+        ? inviteFormData.permissions
+        : getDefaultPermissions(inviteFormData.role);
+
       const newInvitation: Omit<UserInvitation, 'id'> = {
         email: inviteFormData.email.trim().toLowerCase(),
         role: inviteFormData.role,
+        permissions,
         schoolId,
         invitedBy: currentUserUid,
         status: 'pending',
@@ -87,7 +109,7 @@ const InvitationManagement: React.FC<InvitationManagementProps> = ({ schoolId, c
       await addDoc(invitationsCollection, newInvitation);
 
       // Reset form and reload
-      setInviteFormData({ email: '', role: 'teacher' });
+      setInviteFormData({ email: '', role: 'teacher', permissions: [] });
       setShowInviteForm(false);
       await loadInvitations();
 

@@ -13,12 +13,18 @@ import OverridesPage from './pages/OverridesPage';
 import AdminPage from './pages/AdminPage';
 import TeacherSetupPage from './pages/TeacherSetupPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
+import './styles/responsive.css';
 import './App.css';
 
 const ProtectedPageLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <>
     <Navigation />
-    {children}
+    <div style={{ paddingBottom: '80px' }} className="show-mobile-only">
+      {children}
+    </div>
+    <div className="hidden-mobile">
+      {children}
+    </div>
   </>
 );
 
@@ -33,7 +39,7 @@ const App: React.FC = () => (
         <Route
           path="/car-lookup"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'teacher', 'staff']}>
+            <ProtectedRoute requiredPermissions={['CAR_LOOKUP']}>
               <ProtectedPageLayout>
                 <CarLookupPage />
               </ProtectedPageLayout>
@@ -43,7 +49,7 @@ const App: React.FC = () => (
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'teacher', 'staff']}>
+            <ProtectedRoute requiredPermissions={['MANAGEMENT']}>
               <ProtectedPageLayout>
                 <DashboardPage />
               </ProtectedPageLayout>
@@ -53,7 +59,7 @@ const App: React.FC = () => (
         <Route
           path="/checkin"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'front_office', 'teacher', 'staff']}>
+            <ProtectedRoute requiredPermissions={['CHECKIN']}>
               <ProtectedPageLayout>
                 <CheckInPage />
               </ProtectedPageLayout>
@@ -63,7 +69,7 @@ const App: React.FC = () => (
         <Route
           path="/overrides"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'front_office']}>
+            <ProtectedRoute requiredPermissions={['OVERRIDES']}>
               <ProtectedPageLayout>
                 <OverridesPage />
               </ProtectedPageLayout>
@@ -73,7 +79,7 @@ const App: React.FC = () => (
         <Route
           path="/setup"
           element={
-            <ProtectedRoute allowedRoles={['admin', 'teacher', 'staff']}>
+            <ProtectedRoute requiredPermissions={['SETUP']}>
               <ProtectedPageLayout>
                 <TeacherSetupPage />
               </ProtectedPageLayout>
@@ -83,7 +89,7 @@ const App: React.FC = () => (
         <Route
           path="/admin"
           element={
-            <ProtectedRoute allowedRoles={['admin']}>
+            <ProtectedRoute requiredPermissions={['ADMIN']}>
               <ProtectedPageLayout>
                 <AdminPage />
               </ProtectedPageLayout>

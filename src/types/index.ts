@@ -3,12 +3,23 @@ import { Timestamp } from 'firebase/firestore';
 // User roles and authentication
 export type UserRole = 'admin' | 'teacher' | 'staff' | 'front_office';
 
+// Page permissions for granular access control
+export type PagePermission =
+  | 'CAR_LOOKUP'           // Access to car lookup/add to queue
+  | 'MANAGEMENT'           // Access to cone queue management
+  | 'ADMIN'                // Access to admin settings
+  | 'CHECKIN'              // Access to student check-in
+  | 'OVERRIDES'            // Access to manage overrides
+  | 'SETUP'                // Access to teacher setup/configuration
+  | 'REPORTS';             // Access to reports and analytics
+
 export interface User {
   uid: string;
   email: string;
   displayName: string;
   role: UserRole;
   schoolId: string;
+  permissions: PagePermission[]; // Granular page-level permissions
   createdAt: Timestamp;
   lastLogin: Timestamp;
 }
@@ -154,6 +165,7 @@ export interface UserInvitation {
   id: string;
   email: string;
   role: UserRole;
+  permissions: PagePermission[]; // Specific page permissions for this invitation
   schoolId: string;
   invitedBy: string; // user uid who sent the invitation
   status: 'pending' | 'accepted' | 'expired';
