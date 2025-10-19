@@ -97,13 +97,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (userSnap.exists()) {
         const userData = userSnap.data() as User;
 
-        // Ensure permissions exist, add defaults if missing
-        if (!userData.permissions) {
+        // Ensure permissions exist, add defaults if missing (in memory only)
+        if (!userData.permissions || userData.permissions.length === 0) {
           userData.permissions = getDefaultPermissions(userData.role);
-          // Update the user document with default permissions
-          await setDoc(userDoc, {
-            permissions: userData.permissions
-          }, { merge: true });
         }
 
         setUserProfile(userData);
