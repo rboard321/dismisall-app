@@ -37,17 +37,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/" replace />;
   }
 
-  // Show role assignment if user is logged in but has no profile
+  // Redirect to landing page if user is logged in but has no profile
+  // They need to register a school or use an invitation link
   if (requireAuth && currentUser && !userProfile) {
-    return (
-      <RoleAssignment
-        onRoleAssign={async (role, schoolId) => {
-          await updateUserRole(currentUser.uid, role, schoolId);
-          window.location.reload(); // Refresh to load new profile
-        }}
-        isNewUser={true}
-      />
-    );
+    return <Navigate to="/" replace />;
   }
 
   // Check permissions if specified, otherwise fall back to role check

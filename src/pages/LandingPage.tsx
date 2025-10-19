@@ -1,8 +1,19 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const { currentUser, userProfile, loading } = useAuth();
+
+  const handleLogout = async () => {
+    await signOut(auth);
+  };
+
+  // Show a message for authenticated users without profiles
+  const showProfileMessage = currentUser && !userProfile && !loading;
 
   return (
     <div style={{
@@ -25,21 +36,43 @@ const LandingPage: React.FC = () => {
         }}>
           🚸 DismissalPro
         </div>
-        <button
-          onClick={() => navigate('/login')}
-          style={{
-            padding: '0.75rem 1.5rem',
-            backgroundColor: 'transparent',
-            color: 'white',
-            border: '2px solid white',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '1rem',
-            fontWeight: '500'
-          }}
-        >
-          Sign In
-        </button>
+        {showProfileMessage ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <span style={{ color: 'white', fontSize: '0.875rem' }}>
+              {currentUser?.email}
+            </span>
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: '0.5rem 1rem',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                border: '1px solid white',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '0.875rem'
+              }}
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => navigate('/login')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: 'transparent',
+              color: 'white',
+              border: '2px solid white',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '500'
+            }}
+          >
+            Sign In
+          </button>
+        )}
       </header>
 
       {/* Hero Section */}
@@ -59,24 +92,86 @@ const LandingPage: React.FC = () => {
         }}>
           {/* Left Column - Content */}
           <div style={{ color: 'white' }}>
-            <h1 style={{
-              fontSize: '3rem',
-              fontWeight: 'bold',
-              marginBottom: '1.5rem',
-              lineHeight: '1.2'
-            }}>
-              Streamline Your School's Dismissal Process
-            </h1>
+            {showProfileMessage ? (
+              <>
+                <h1 style={{
+                  fontSize: '3rem',
+                  fontWeight: 'bold',
+                  marginBottom: '1.5rem',
+                  lineHeight: '1.2'
+                }}>
+                  Welcome Back!
+                </h1>
+                <div style={{
+                  padding: '2rem',
+                  backgroundColor: 'rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  marginBottom: '2rem',
+                  border: '1px solid rgba(255,255,255,0.2)'
+                }}>
+                  <h2 style={{ marginTop: 0, color: '#FFE066' }}>Account Setup Required</h2>
+                  <p style={{ marginBottom: '1.5rem', lineHeight: '1.6' }}>
+                    You're signed in as <strong>{currentUser?.email}</strong>, but your account needs to be set up.
+                  </p>
+                  <p style={{ marginBottom: '1.5rem', lineHeight: '1.6' }}>
+                    Please choose one of the following options:
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <button
+                      onClick={() => navigate('/register')}
+                      style={{
+                        padding: '1rem 1.5rem',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      🏫 Register Your School
+                    </button>
+                    <button
+                      onClick={() => navigate('/accept-invite')}
+                      style={{
+                        padding: '1rem 1.5rem',
+                        backgroundColor: '#007bff',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '1rem',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      ✉️ I Have an Invitation Link
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <h1 style={{
+                fontSize: '3rem',
+                fontWeight: 'bold',
+                marginBottom: '1.5rem',
+                lineHeight: '1.2'
+              }}>
+                Streamline Your School's Dismissal Process
+              </h1>
+            )}
 
-            <p style={{
-              fontSize: '1.25rem',
-              marginBottom: '2rem',
-              opacity: 0.9,
-              lineHeight: '1.6'
-            }}>
-              Simple, secure, and affordable dismissal management that runs itself.
-              No training required, no servers to manage, no headaches.
-            </p>
+            {!showProfileMessage && (
+              <>
+                <p style={{
+                  fontSize: '1.25rem',
+                  marginBottom: '2rem',
+                  opacity: 0.9,
+                  lineHeight: '1.6'
+                }}>
+                  Simple, secure, and affordable dismissal management that runs itself.
+                  No training required, no servers to manage, no headaches.
+                </p>
 
             <div style={{
               display: 'flex',
@@ -138,6 +233,8 @@ const LandingPage: React.FC = () => {
                 See How It Works
               </button>
             </div>
+              </>
+            )}
           </div>
 
           {/* Right Column - Visual */}
