@@ -1,0 +1,74 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User documents - users can read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // School data - multi-tenant isolation
+    match /schools/{schoolId} {
+      // Helper function to check if user belongs to this school
+      function belongsToSchool() {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId == schoolId;
+      }
+
+      // Helper function to check user role
+      function hasRole(role) {
+        return request.auth != null &&
+               get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == role;
+      }
+
+      // Helper function to check if user has admin or front office role
+      function canManageData() {
+        return hasRole('admin') || hasRole('front_office');
+      }
+
+      // Helper function to check if user can perform dismissals
+      function canDismiss() {
+        return hasRole('admin') || hasRole('teacher') || hasRole('staff');
+      }
+
+      // Students collection
+      match /students/{studentId} {
+        allow read: if belongsToSchool();
+        allow create, update, delete: if belongsToSchool() && canManageData();
+      }
+
+      // Cars collection
+      match /cars/{carId} {
+        allow read: if belongsToSchool();
+        allow create, update, delete: if belongsToSchool() && canManageData();
+      }
+
+      // Overrides collection
+      match /overrides/{overrideId} {
+        allow read: if belongsToSchool();
+        allow create, update, delete: if belongsToSchool() && canManageData();
+      }
+
+      // Lanes collection
+      match /lanes/{laneId} {
+        allow read: if belongsToSchool();
+        allow create, update, delete: if belongsToSchool() && hasRole('admin');
+      }
+
+      // Dismissals collection
+      match /dismissals/{dismissalId} {
+        allow read: if belongsToSchool();
+        allow create: if belongsToSchool() && canDismiss();
+        allow update, delete: if belongsToSchool() && hasRole('admin');
+      }
+
+      // School configuration (admin only)
+      allow read: if belongsToSchool();
+      allow write: if belongsToSchool() && hasRole('admin');
+    }
+
+    // Deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
