@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { collection, addDoc, doc, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import { PagePermission } from '../types';
 
 interface SchoolFormData {
   schoolName: string;
@@ -142,6 +143,7 @@ const SchoolRegistrationPage: React.FC = () => {
         displayName: displayName,
         role: 'admin' as const,
         schoolId: schoolRef.id,
+        permissions: ['CAR_LOOKUP', 'MANAGEMENT', 'ADMIN', 'CHECKIN', 'OVERRIDES', 'SETUP', 'REPORTS'],
         createdAt: Timestamp.now(),
         lastLogin: Timestamp.now()
       };
