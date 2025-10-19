@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, getDocs, onSnapshot, doc, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { Student, Override, Lane } from '../types';
+import { Student, Override, Lane, Dismissal } from '../types';
 import CarInput from '../components/CarInput';
 
 interface CarLookupResult {

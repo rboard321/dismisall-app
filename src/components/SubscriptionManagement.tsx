@@ -106,7 +106,7 @@ const SubscriptionManagement: React.FC<SubscriptionManagementProps> = ({ school,
       const session = await response.json();
 
       // Redirect to Stripe Checkout
-      const result = await stripe.redirectToCheckout({
+      const result = await (stripe as any).redirectToCheckout({
         sessionId: session.id,
       });
 
