@@ -13,6 +13,7 @@ import OverridesPage from './pages/OverridesPage';
 import AdminPage from './pages/AdminPage';
 import TeacherSetupPage from './pages/TeacherSetupPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
+import PWAInstallPrompt from './components/PWAInstallPrompt';
 import './styles/responsive.css';
 import './App.css';
 
@@ -97,6 +98,7 @@ const App: React.FC = () => (
           }
         />
       </Routes>
+      <PWAInstallPrompt />
     </Router>
   </AuthProvider>
 );

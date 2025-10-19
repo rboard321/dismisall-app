@@ -610,3 +610,46 @@ body {
 .status-dot-warning { background-color: var(--warning); }
 .status-dot-danger { background-color: var(--danger); }
 .status-dot-info { background-color: var(--info); }
+
+/* PWA specific styles */
+.fixed {
+  position: fixed;
+}
+
+.z-50 {
+  z-index: 50;
+}
+
+.max-w-md {
+  max-width: 28rem;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* PWA safe area support for devices with notches */
+@supports (padding: max(0px)) {
+  .safe-area-bottom {
+    padding-bottom: max(var(--spacing-md), env(safe-area-inset-bottom));
+  }
+
+  .safe-area-top {
+    padding-top: max(var(--spacing-md), env(safe-area-inset-top));
+  }
+}
+
+/* PWA display mode styles */
+@media (display-mode: standalone) {
+  /* Hide elements that shouldn't show in PWA mode */
+  .hide-in-pwa {
+    display: none !important;
+  }
+
+  /* Add extra padding for standalone mode */
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
