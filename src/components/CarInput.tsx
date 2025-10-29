@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import QRScanner from './QRScanner';
 
 interface CarInputProps {
   onCarSubmit: (carNumber: string) => void;
@@ -31,85 +32,6 @@ const CarInput: React.FC<CarInputProps> = ({ onCarSubmit, loading, disabled }) =
     }
   };
 
-  const QRScannerPlaceholder = () => (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000,
-      color: 'white'
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        color: 'black',
-        padding: '2rem',
-        borderRadius: '8px',
-        textAlign: 'center',
-        maxWidth: '400px',
-        margin: '1rem'
-      }}>
-        <h3>QR Scanner Placeholder</h3>
-        <p>In production, this would open the camera to scan QR codes.</p>
-        <p>For testing, enter a car number manually or click "Simulate Scan".</p>
-
-        <div style={{ margin: '1rem 0' }}>
-          <input
-            type="text"
-            placeholder="Enter car number for testing"
-            value={carNumber}
-            onChange={(e) => setCarNumber(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              border: '1px solid #ccc',
-              borderRadius: '4px',
-              marginBottom: '1rem'
-            }}
-          />
-        </div>
-
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-          <button
-            onClick={() => {
-              if (carNumber.trim()) {
-                handleQRScan(`DISMISSAL_CAR_${carNumber.trim()}`);
-              }
-            }}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Simulate Scan
-          </button>
-          <button
-            onClick={() => setShowQRScanner(false)}
-            style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: '#dc3545',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <>
@@ -211,7 +133,11 @@ const CarInput: React.FC<CarInputProps> = ({ onCarSubmit, loading, disabled }) =
         </div>
       </div>
 
-      {showQRScanner && <QRScannerPlaceholder />}
+      <QRScanner
+        isOpen={showQRScanner}
+        onScan={handleQRScan}
+        onClose={() => setShowQRScanner(false)}
+      />
     </>
   );
 };
