@@ -17,12 +17,11 @@ import { User, Student, Dismissal, Lane, DismissalSummary, UserRole } from '../t
 import ConeConfiguration from '../components/ConeConfiguration';
 import UserManagement from '../components/UserManagement';
 import DismissalReports from '../components/DismissalReports';
-import InvitationManagement from '../components/InvitationManagement';
 import SubscriptionManagement from '../components/SubscriptionManagement';
 
 const AdminPage: React.FC = () => {
   const { userProfile, schoolProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'daily' | 'users' | 'invitations' | 'billing' | 'reports'>('daily');
+  const [activeTab, setActiveTab] = useState<'daily' | 'users' | 'billing' | 'reports'>('daily');
   const [todaysLane, setTodaysLane] = useState<Lane | null>(null);
   const [todaysDismissals, setTodaysDismissals] = useState<Dismissal[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -102,21 +101,40 @@ const AdminPage: React.FC = () => {
 
   // Load users for management
   const loadUsers = useCallback(async () => {
-    if (!userProfile?.schoolId) return;
+    if (!userProfile?.schoolId) {
+      console.log('Cannot load users: No schoolId in userProfile', userProfile);
+      return;
+    }
+
+    console.log('Loading users for school:', userProfile.schoolId);
+    console.log('Current user role:', userProfile.role);
+    console.log('Current user UID:', userProfile.uid);
 
     try {
       const usersCollection = collection(db, 'users');
       const q = query(usersCollection, where('schoolId', '==', userProfile.schoolId));
+
+      console.log('Executing Firestore query for users...');
       const snapshot = await getDocs(q);
+
+      console.log(`Query successful! Found ${snapshot.size} documents`);
 
       const usersData: User[] = [];
       snapshot.forEach((doc) => {
+        console.log('User document:', doc.id, doc.data());
         usersData.push({ uid: doc.id, ...doc.data() } as User);
       });
 
+      console.log('Loaded users:', usersData);
       setUsers(usersData);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading users:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+
+      if (error.code === 'permission-denied') {
+        console.error('Permission denied - check Firestore rules for admin user access');
+      }
     }
   }, [userProfile?.schoolId]);
 
@@ -258,7 +276,6 @@ const AdminPage: React.FC = () => {
   const tabs = [
     { id: 'daily', label: 'Daily Management', icon: '📋' },
     { id: 'users', label: 'User Management', icon: '👥' },
-    { id: 'invitations', label: 'Invitations', icon: '✉️' },
     { id: 'billing', label: 'Billing & Subscription', icon: '💳' },
     { id: 'reports', label: 'Reports & Analytics', icon: '📊' }
   ] as const;
@@ -416,17 +433,6 @@ const AdminPage: React.FC = () => {
             users={users}
             onRoleUpdate={handleUserRoleUpdate}
             loading={loading}
-          />
-        </div>
-      )}
-
-      {activeTab === 'invitations' && (
-        <div>
-          <h2>Invitation Management</h2>
-          <p style={{ color: '#666', marginBottom: '2rem' }}>
-            Invite new team members to join your school. They'll receive an invitation link to sign up and will be automatically assigned to your school with the specified role.
-          </p>
-          <InvitationManagement
             schoolId={userProfile.schoolId}
             currentUserUid={userProfile.uid}
           />
