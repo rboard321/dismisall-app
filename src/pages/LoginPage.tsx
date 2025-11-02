@@ -200,8 +200,7 @@ const LoginPage: React.FC = () => {
         fontSize: '0.9rem',
         color: '#666'
       }}>
-        <strong>First time user?</strong> After signing in, you'll need to set up
-        your role and school affiliation.
+        <strong>First time user?</strong> After signing in, you can either create a new school account or join an existing school with an invitation code.
       </div>
     </div>
   );

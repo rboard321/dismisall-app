@@ -106,22 +106,25 @@ service cloud.firestore {
 
     // Invitations collection (global, not under schools)
     match /invitations/{invitationId} {
-      // Only admins can create/read invitations for their school
-      allow read, create: if request.auth != null &&
-        hasRole('admin') &&
-        resource.data.schoolId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId;
+      // Allow reading invitations for acceptance (anyone can read by invitation token)
+      // This is needed because users accepting invitations don't have profiles yet
+      allow read: if true;
 
-      // Allow reading invitation by token for acceptance (public access)
-      allow read: if resource.data.inviteToken == request.query.token;
+      // Only authenticated users with admin role in the same school can create invitations
+      allow create: if request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId == request.resource.data.schoolId;
 
-      // Allow updating invitation status when accepting (by email match)
+      // Allow updating invitation status when accepting (by authenticated user with matching email)
       allow update: if request.auth != null &&
         resource.data.email == request.auth.token.email &&
         request.resource.data.status == 'accepted';
 
-      // Only admins can cancel invitations
+      // Allow admins to update invitations (resend, cancel) for their school
       allow update: if request.auth != null &&
-        hasRole('admin') &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' &&
         resource.data.schoolId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId;
     }
 

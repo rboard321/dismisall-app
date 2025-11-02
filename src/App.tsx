@@ -13,6 +13,9 @@ import OverridesPage from './pages/OverridesPage';
 import AdminPage from './pages/AdminPage';
 import TeacherSetupPage from './pages/TeacherSetupPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
+import AccountSetupPage from './pages/AccountSetupPage';
+import SignupPage from './pages/SignupPage';
+import SchoolSetupPage from './pages/SchoolSetupPage';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
 import './styles/responsive.css';
 import './App.css';
@@ -35,7 +38,10 @@ const App: React.FC = () => (
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<SchoolRegistrationPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/school-setup" element={<SchoolSetupPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/account-setup" element={<AccountSetupPage />} />
         <Route path="/accept-invite" element={<AcceptInvitePage />} />
         <Route
           path="/car-lookup"

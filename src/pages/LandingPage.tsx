@@ -118,7 +118,7 @@ const LandingPage: React.FC = () => {
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <button
-                      onClick={() => navigate('/register')}
+                      onClick={() => navigate('/school-setup')}
                       style={{
                         padding: '1rem 1.5rem',
                         backgroundColor: '#28a745',
@@ -130,7 +130,7 @@ const LandingPage: React.FC = () => {
                         fontWeight: 'bold'
                       }}
                     >
-                      🏫 Register Your School
+                      🏫 Set Up Your School
                     </button>
                     <button
                       onClick={() => navigate('/accept-invite')}
@@ -199,7 +199,7 @@ const LandingPage: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button
-                onClick={() => navigate('/register')}
+                onClick={() => navigate('/signup')}
                 style={{
                   padding: '1rem 2rem',
                   backgroundColor: '#ffd700',
@@ -439,7 +439,7 @@ const LandingPage: React.FC = () => {
 
           <div style={{ marginTop: '3rem' }}>
             <button
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/signup')}
               style={{
                 padding: '1rem 3rem',
                 backgroundColor: '#667eea',

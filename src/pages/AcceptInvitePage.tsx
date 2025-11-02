@@ -9,9 +9,10 @@ import { UserInvitation } from '../types';
 const AcceptInvitePage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { currentUser, updateUserRole } = useAuth();
+  const { currentUser, updateUserRole, reloadUserProfile } = useAuth();
   const [invitation, setInvitation] = useState<UserInvitation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [authData, setAuthData] = useState({
@@ -77,10 +78,16 @@ const AcceptInvitePage: React.FC = () => {
     if (!invitation || !currentUser) return;
 
     try {
-      setLoading(true);
+      setAccepting(true);
+      setError(null);
+
+      console.log('Accepting invitation for:', currentUser.email, 'Role:', invitation.role);
 
       // Update user profile with school, role, and permissions
       await updateUserRole(currentUser.uid, invitation.role, invitation.schoolId, invitation.permissions);
+
+      // Wait for the user profile to be reloaded in the AuthContext
+      await reloadUserProfile();
 
       // Mark invitation as accepted
       const invitationDoc = doc(db, 'invitations', invitation.id);
@@ -89,13 +96,25 @@ const AcceptInvitePage: React.FC = () => {
         acceptedAt: Timestamp.now()
       });
 
+      console.log('Invitation accepted successfully, redirecting to dashboard');
+
       // Redirect to dashboard
       navigate('/dashboard');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error accepting invitation:', error);
-      setError('Failed to accept invitation. Please try again.');
-      setLoading(false);
+      let errorMessage = 'Failed to accept invitation. Please try again.';
+
+      if (error.code === 'permission-denied') {
+        errorMessage = 'Permission denied. Please check your invitation link and try again.';
+      } else if (error.code === 'not-found') {
+        errorMessage = 'Invitation not found or has expired.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setError(errorMessage);
+      setAccepting(false);
     }
   };
 
@@ -142,12 +161,25 @@ const AcceptInvitePage: React.FC = () => {
 
   // Accept invitation when user becomes authenticated
   useEffect(() => {
-    if (currentUser && invitation && !loading) {
+    // Only auto-accept if:
+    // 1. User is authenticated
+    // 2. We have a valid invitation
+    // 3. We're not currently loading the invitation data
+    // 4. We're not already accepting the invitation
+    // 5. We haven't encountered an error
+    if (currentUser && invitation && !loading && !accepting && !error) {
+      console.log('Auto-accepting invitation for authenticated user:', currentUser.email);
       acceptInvitation();
     }
-  }, [currentUser, invitation]);
+  }, [currentUser, invitation, loading, accepting, error]);
 
-  if (loading) {
+  if (loading || accepting) {
+    const loadingMessage = loading && !invitation
+      ? 'Loading invitation...'
+      : accepting
+        ? 'Setting up your account...'
+        : 'Processing...';
+
     return (
       <div style={{
         display: 'flex',
@@ -158,7 +190,12 @@ const AcceptInvitePage: React.FC = () => {
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⏳</div>
-          <div>Loading invitation...</div>
+          <div style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>{loadingMessage}</div>
+          {currentUser && invitation && accepting && (
+            <div style={{ fontSize: '0.9rem', color: '#666' }}>
+              Setting up {invitation.role} access for {currentUser.email}
+            </div>
+          )}
         </div>
       </div>
     );

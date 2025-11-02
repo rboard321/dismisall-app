@@ -276,10 +276,10 @@ const InvitationManagement: React.FC<InvitationManagementProps> = ({ schoolId, c
                     }}
                     className="form-select"
                   >
-                    <option value="teacher">Teacher</option>
-                    <option value="staff">Staff</option>
+                    <option value="teacher">Teacher (Car + Cone Manager)</option>
+                    <option value="staff">Staff (Car Manager Only)</option>
                     <option value="front_office">Front Office</option>
-                    <option value="admin">Admin</option>
+                    <option value="admin">Administrator</option>
                   </select>
                 </div>
               </div>
@@ -296,12 +296,12 @@ const InvitationManagement: React.FC<InvitationManagementProps> = ({ schoolId, c
                     </p>
                     <div className="grid grid-2-mobile-1 gap-sm">
                       {[
-                        { key: 'CAR_LOOKUP', label: 'Car Lookup', icon: '🔍', description: 'Find and queue cars' },
-                        { key: 'MANAGEMENT', label: 'Management', icon: '📊', description: 'Cone queue management' },
+                        { key: 'CAR_LOOKUP', label: 'Car Manager', icon: '🚗', description: 'Find cars by number and add to dismissal queue' },
+                        { key: 'MANAGEMENT', label: 'Cone Manager', icon: '🔺', description: 'Manage cone assignments and dismissal workflow' },
                         { key: 'CHECKIN', label: 'Student Check-in', icon: '👥', description: 'Check students in/out' },
                         { key: 'OVERRIDES', label: 'Overrides', icon: '🔄', description: 'Override dismissal rules' },
                         { key: 'SETUP', label: 'Teacher Setup', icon: '🔧', description: 'Manage students and cars' },
-                        { key: 'ADMIN', label: 'Admin Panel', icon: '⚙️', description: 'Full admin access' },
+                        { key: 'ADMIN', label: 'Admin Panel', icon: '⚙️', description: 'Full administrative access' },
                         { key: 'REPORTS', label: 'Reports', icon: '📈', description: 'View analytics and reports' }
                       ].map(permission => (
                         <label

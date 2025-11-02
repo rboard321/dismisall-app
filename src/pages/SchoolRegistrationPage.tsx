@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { collection, addDoc, doc, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { PagePermission } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 interface SchoolFormData {
   schoolName: string;
@@ -22,6 +22,7 @@ interface SchoolFormData {
 
 const SchoolRegistrationPage: React.FC = () => {
   const navigate = useNavigate();
+  const { reloadUserProfile } = useAuth();
   const [formData, setFormData] = useState<SchoolFormData>({
     schoolName: '',
     address: '',
@@ -149,6 +150,9 @@ const SchoolRegistrationPage: React.FC = () => {
       };
 
       await setDoc(doc(db, 'users', userId), userProfile);
+
+      // Wait for the user profile to be reloaded in the AuthContext
+      await reloadUserProfile();
 
       // Navigate to dashboard
       navigate('/dashboard');

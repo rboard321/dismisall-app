@@ -2,7 +2,6 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole, PagePermission } from '../types';
-import RoleAssignment from './RoleAssignment';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -17,7 +16,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredPermissions = [],
   requireAuth = true
 }) => {
-  const { currentUser, userProfile, loading, updateUserRole } = useAuth();
+  const { currentUser, userProfile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -37,10 +36,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/" replace />;
   }
 
-  // Redirect to landing page if user is logged in but has no profile
+  // Redirect to account setup if user is logged in but has no profile
   // They need to register a school or use an invitation link
   if (requireAuth && currentUser && !userProfile) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/account-setup" replace />;
   }
 
   // Check permissions if specified, otherwise fall back to role check

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { User as FirebaseUser, onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -11,6 +11,7 @@ interface AuthContextType {
   loading: boolean;
   logout: () => Promise<void>;
   updateUserRole: (uid: string, role: UserRole, schoolId: string, permissions?: PagePermission[]) => Promise<void>;
+  reloadUserProfile: () => Promise<void>;
   isTrialExpired: boolean;
   isSubscriptionActive: boolean;
 }
@@ -71,7 +72,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, { merge: true });
   };
 
-  const loadSchoolProfile = async (schoolId: string) => {
+  const reloadUserProfile = async () => {
+    if (currentUser) {
+      await loadUserProfile(currentUser);
+    }
+  };
+
+  const loadSchoolProfile = useCallback(async (schoolId: string) => {
     try {
       const schoolDoc = doc(db, 'schools', schoolId);
       const schoolSnap = await getDoc(schoolDoc);
@@ -87,9 +94,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.error('Error loading school profile:', error);
       setSchoolProfile(null);
     }
-  };
+  }, []);
 
-  const loadUserProfile = async (user: FirebaseUser) => {
+  const loadUserProfile = useCallback(async (user: FirebaseUser) => {
     try {
       const userDoc = doc(db, 'users', user.uid);
       const userSnap = await getDoc(userDoc);
@@ -124,7 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUserProfile(null);
       setSchoolProfile(null);
     }
-  };
+  }, [loadSchoolProfile]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -141,7 +148,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     return unsubscribe;
-  }, []);
+  }, [loadUserProfile]);
 
   // Calculate subscription status
   const isTrialExpired = schoolProfile?.trialEndsAt ?
@@ -157,6 +164,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     logout,
     updateUserRole,
+    reloadUserProfile,
     isTrialExpired,
     isSubscriptionActive
   };
