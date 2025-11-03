@@ -30,10 +30,12 @@ const CarLookupPage: React.FC = () => {
     if (!userProfile?.schoolId) return;
 
     try {
+      console.log('Loading today\'s lane for user:', userProfile.role, 'school:', userProfile.schoolId);
       const today = new Date().toISOString().split('T')[0];
       const lanesCollection = collection(db, 'schools', userProfile.schoolId, 'lanes');
       const q = query(lanesCollection, where('date', '==', today));
       const snapshot = await getDocs(q);
+      console.log('Lanes query successful, found', snapshot.size, 'lanes');
 
       if (!snapshot.empty) {
         const laneDoc = snapshot.docs[0];
@@ -53,6 +55,10 @@ const CarLookupPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading today\'s lane:', error);
+      console.error('Lane loading error details:', {
+        code: (error as any)?.code,
+        message: (error as any)?.message
+      });
       setError('Failed to load dismissal configuration');
     }
   }, [userProfile?.schoolId]);
@@ -105,9 +111,17 @@ const CarLookupPage: React.FC = () => {
     try {
       const schoolId = userProfile.schoolId;
 
+      console.log('Car lookup debug info:');
+      console.log('- User role:', userProfile.role);
+      console.log('- User permissions:', userProfile.permissions);
+      console.log('- School ID:', schoolId);
+      console.log('- Car number:', carNumber);
+
       // Get students assigned to this car (either as default or override)
+      console.log('Attempting to query students collection...');
       const studentsCollection = collection(db, 'schools', schoolId, 'students');
       const studentsSnapshot = await getDocs(studentsCollection);
+      console.log('Students query successful, found', studentsSnapshot.size, 'students');
 
       const students: Student[] = [];
       studentsSnapshot.forEach((doc) => {
@@ -118,6 +132,7 @@ const CarLookupPage: React.FC = () => {
       });
 
       // Get active overrides for this car
+      console.log('Attempting to query overrides collection...');
       const overridesCollection = collection(db, 'schools', schoolId, 'overrides');
       const today = new Date();
       const overridesQuery = query(
@@ -125,6 +140,7 @@ const CarLookupPage: React.FC = () => {
         where('carNumber', '==', carNumber)
       );
       const overridesSnapshot = await getDocs(overridesQuery);
+      console.log('Overrides query successful, found', overridesSnapshot.size, 'overrides');
 
       const overrideStudentIds: string[] = [];
 
@@ -142,7 +158,9 @@ const CarLookupPage: React.FC = () => {
 
       // Get override students
       if (overrideStudentIds.length > 0) {
+        console.log('Querying students collection again for override students...');
         const overrideStudentsSnapshot = await getDocs(studentsCollection);
+        console.log('Override students query successful');
         overrideStudentsSnapshot.forEach((doc) => {
           const student = { id: doc.id, ...doc.data() } as Student;
           if (overrideStudentIds.includes(student.id)) {
@@ -157,12 +175,14 @@ const CarLookupPage: React.FC = () => {
       }
 
       // Check if car is already dismissed today (simplified query to avoid index requirement)
+      console.log('Attempting to query dismissals collection...');
       const dismissalsCollection = collection(db, 'schools', schoolId, 'dismissals');
       const dismissalQuery = query(
         dismissalsCollection,
         where('carNumber', '==', carNumber)
       );
       const dismissalSnapshot = await getDocs(dismissalQuery);
+      console.log('Dismissals query successful, found', dismissalSnapshot.size, 'dismissals');
 
       // Check client-side if any dismissal is from today
       const today_start = new Date();
@@ -192,16 +212,19 @@ const CarLookupPage: React.FC = () => {
         coneNumber = todaysLane.currentPointer;
 
         // Update lane pointer for round-robin
+        console.log('Attempting to update lane pointer...');
         const nextPointer = (todaysLane.currentPointer % todaysLane.coneCount) + 1;
         const laneDoc = doc(db, 'schools', schoolId, 'lanes', todaysLane.id);
         await updateDoc(laneDoc, {
           currentPointer: nextPointer,
           updatedAt: Timestamp.now()
         });
+        console.log('Lane pointer update successful');
 
         setTodaysLane(prev => prev ? { ...prev, currentPointer: nextPointer } : null);
 
         // Record the car assignment to Firestore with waiting status
+        console.log('Attempting to create dismissal record...');
         await addDoc(dismissalsCollection, {
           carNumber,
           studentIds: students.map(s => s.id),
@@ -210,6 +233,7 @@ const CarLookupPage: React.FC = () => {
           dismissedAt: Timestamp.now(),
           status: 'waiting'
         });
+        console.log('Dismissal record created successfully');
 
         // Clear error and show success
         setError(null);
@@ -218,6 +242,11 @@ const CarLookupPage: React.FC = () => {
 
     } catch (error) {
       console.error('Error looking up car:', error);
+      console.error('Error details:', {
+        code: (error as any)?.code,
+        message: (error as any)?.message,
+        stack: (error as any)?.stack
+      });
       setError('Failed to lookup car. Please try again.');
     } finally {
       setLoading(false);
@@ -264,6 +293,14 @@ const CarLookupPage: React.FC = () => {
   };
 
   if (!userProfile) return null;
+
+  // Debug: log user profile on render
+  console.log('CarLookupPage render - userProfile:', {
+    uid: userProfile.uid,
+    role: userProfile.role,
+    permissions: userProfile.permissions,
+    schoolId: userProfile.schoolId
+  });
 
   return (
     <div style={{ padding: '1rem', maxWidth: '600px', margin: '0 auto' }}>

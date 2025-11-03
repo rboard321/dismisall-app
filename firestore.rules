@@ -70,26 +70,27 @@ service cloud.firestore {
 
       // Students collection
       match /students/{studentId} {
-        allow read: if belongsToSchool() && hasActiveSubscription();
+        allow read: if belongsToSchool() && hasActiveSubscription() && canDismiss();
         allow create, update, delete: if belongsToSchool() && canManageData() && hasActiveSubscription();
       }
 
       // Cars collection
       match /cars/{carId} {
-        allow read: if belongsToSchool() && hasActiveSubscription();
+        allow read: if belongsToSchool() && hasActiveSubscription() && canDismiss();
         allow create, update, delete: if belongsToSchool() && canManageData() && hasActiveSubscription();
       }
 
       // Overrides collection
       match /overrides/{overrideId} {
-        allow read: if belongsToSchool() && hasActiveSubscription();
+        allow read: if belongsToSchool() && hasActiveSubscription() && canDismiss();
         allow create, update, delete: if belongsToSchool() && canManageData() && hasActiveSubscription();
       }
 
       // Lanes collection
       match /lanes/{laneId} {
         allow read: if belongsToSchool();
-        allow create, update, delete: if belongsToSchool() && hasRole('admin');
+        allow create, delete: if belongsToSchool() && hasRole('admin');
+        allow update: if belongsToSchool() && canDismiss(); // Allow teachers to update lane pointer
       }
 
       // Dismissals collection
