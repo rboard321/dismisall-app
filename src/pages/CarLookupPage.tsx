@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, onSnapshot, doc, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
@@ -25,47 +25,55 @@ const CarLookupPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load today's lane configuration
-  const loadTodaysLane = useCallback(async () => {
+
+  // Subscribe to real-time lane updates
+  useEffect(() => {
     if (!userProfile?.schoolId) return;
 
-    try {
-      console.log('Loading today\'s lane for user:', userProfile.role, 'school:', userProfile.schoolId);
-      const today = new Date().toISOString().split('T')[0];
-      const lanesCollection = collection(db, 'schools', userProfile.schoolId, 'lanes');
-      const q = query(lanesCollection, where('date', '==', today));
-      const snapshot = await getDocs(q);
-      console.log('Lanes query successful, found', snapshot.size, 'lanes');
+    const today = new Date().toISOString().split('T')[0];
+    const lanesCollection = collection(db, 'schools', userProfile.schoolId, 'lanes');
+    const q = query(lanesCollection, where('date', '==', today));
+
+    console.log('Setting up real-time listener for today\'s lane...');
+
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      console.log('Lane data updated, found', snapshot.size, 'lanes');
 
       if (!snapshot.empty) {
         const laneDoc = snapshot.docs[0];
-        setTodaysLane({ id: laneDoc.id, ...laneDoc.data() } as Lane);
+        const laneData = { id: laneDoc.id, ...laneDoc.data() } as Lane;
+        console.log('Updated lane data:', laneData);
+        setTodaysLane(laneData);
       } else {
-        // Create today's lane with default settings
-        const newLane: Omit<Lane, 'id'> = {
-          date: today,
-          coneCount: 4,
-          currentPointer: 1,
-          timezone: 'America/New_York',
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now()
-        };
-        const docRef = await addDoc(lanesCollection, newLane);
-        setTodaysLane({ id: docRef.id, ...newLane });
+        // Create today's lane with default settings if it doesn't exist
+        console.log('No lane found for today, creating new lane...');
+        try {
+          const newLane: Omit<Lane, 'id'> = {
+            date: today,
+            coneCount: 4,
+            currentPointer: 1,
+            timezone: 'America/New_York',
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
+          };
+          const docRef = await addDoc(lanesCollection, newLane);
+          setTodaysLane({ id: docRef.id, ...newLane });
+          console.log('Created new lane with pointer 1');
+        } catch (error) {
+          console.error('Error creating today\'s lane:', error);
+          setError('Failed to create dismissal configuration');
+        }
       }
-    } catch (error) {
-      console.error('Error loading today\'s lane:', error);
-      console.error('Lane loading error details:', {
-        code: (error as any)?.code,
-        message: (error as any)?.message
-      });
+    }, (error) => {
+      console.error('Error in lane listener:', error);
       setError('Failed to load dismissal configuration');
-    }
-  }, [userProfile?.schoolId]);
+    });
 
-  useEffect(() => {
-    loadTodaysLane();
-  }, [loadTodaysLane]);
+    return () => {
+      console.log('Cleaning up lane listener');
+      unsubscribe();
+    };
+  }, [userProfile?.schoolId]);
 
   // Subscribe to real-time dismissal updates
   useEffect(() => {
