@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { collection, query, where, getDocs, onSnapshot, doc, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
@@ -6,11 +6,12 @@ import { Student, Override, Dismissal, Lane } from '../types';
 import ConeQueue from '../components/ConeQueue';
 
 const DashboardPage: React.FC = () => {
-  const { userProfile } = useAuth();
+  const { userProfile, schoolProfile } = useAuth();
   const [todaysLane, setTodaysLane] = useState<Lane | null>(null);
   const [dismissals, setDismissals] = useState<Dismissal[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const autoClearTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load today's lane configuration
   const loadTodaysLane = useCallback(async () => {
@@ -95,33 +96,34 @@ const DashboardPage: React.FC = () => {
   }, [userProfile?.schoolId]);
 
   // Handle status transitions
-  const handleSendToCone = async (dismissalId: string) => {
+  const handleSendStudents = async (dismissalId: string) => {
     if (!userProfile?.schoolId) return;
 
     try {
       const dismissalDoc = doc(db, 'schools', userProfile.schoolId, 'dismissals', dismissalId);
       await updateDoc(dismissalDoc, {
-        status: 'at_cone',
+        status: 'sent',
+        sentAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       });
     } catch (error) {
       console.error('Error updating dismissal status:', error);
-      setError('Failed to update status. Please try again.');
+      setError('Failed to send students. Please try again.');
     }
   };
 
-  const handleCarLoaded = async (dismissalId: string) => {
+  const handleMarkCompleted = async (dismissalId: string) => {
     if (!userProfile?.schoolId) return;
 
     try {
       const dismissalDoc = doc(db, 'schools', userProfile.schoolId, 'dismissals', dismissalId);
       await updateDoc(dismissalDoc, {
-        status: 'dismissed',
+        status: 'completed',
         updatedAt: Timestamp.now()
       });
     } catch (error) {
       console.error('Error updating dismissal status:', error);
-      setError('Failed to update status. Please try again.');
+      setError('Failed to mark as completed. Please try again.');
     }
   };
 
@@ -143,11 +145,61 @@ const DashboardPage: React.FC = () => {
     loadStudents();
   }, [loadTodaysLane, loadStudents]);
 
+  // Auto-clear timer functionality
+  useEffect(() => {
+    if (!schoolProfile?.settings?.autoClearEnabled || !userProfile?.schoolId) {
+      return;
+    }
+
+    const autoClearDelayMs = (schoolProfile.settings.autoClearDelayMinutes || 2) * 60 * 1000;
+
+    const runAutoClear = async () => {
+      console.log('Running auto-clear check...');
+
+      // Find 'sent' cars that are ready to be auto-cleared
+      const sentCars = dismissals.filter(d => d.status === 'sent' && d.sentAt);
+      const now = new Date();
+
+      for (const dismissal of sentCars) {
+        const sentAt = (dismissal.sentAt as any).toDate ? (dismissal.sentAt as any).toDate() : new Date((dismissal.sentAt as any).seconds * 1000);
+        const timeSinceSent = now.getTime() - sentAt.getTime();
+
+        if (timeSinceSent >= autoClearDelayMs) {
+          console.log(`Auto-clearing car ${dismissal.carNumber} (sent ${Math.floor(timeSinceSent / 1000)}s ago)`);
+
+          try {
+            const dismissalDoc = doc(db, 'schools', userProfile.schoolId, 'dismissals', dismissal.id);
+            await updateDoc(dismissalDoc, {
+              status: 'completed',
+              updatedAt: Timestamp.now()
+            });
+          } catch (error) {
+            console.error('Error auto-clearing dismissal:', error);
+          }
+        }
+      }
+    };
+
+    // Run auto-clear check every 30 seconds
+    const intervalId = setInterval(runAutoClear, 30000);
+    autoClearTimerRef.current = intervalId;
+
+    // Also run immediately on mount
+    runAutoClear();
+
+    return () => {
+      if (autoClearTimerRef.current) {
+        clearInterval(autoClearTimerRef.current);
+        autoClearTimerRef.current = null;
+      }
+    };
+  }, [dismissals, schoolProfile?.settings, userProfile?.schoolId]);
+
 
   const getQueueForCone = (coneNumber: number): Dismissal[] => {
     return dismissals.filter(d =>
       d.coneNumber === coneNumber &&
-      d.status !== 'dismissed' &&
+      d.status !== 'completed' &&
       d.status !== 'historical'
     );
   };
@@ -196,9 +248,10 @@ const DashboardPage: React.FC = () => {
             coneCount={todaysLane.coneCount}
             dismissals={dismissals}
             getQueueForCone={getQueueForCone}
-            onSendToCone={handleSendToCone}
-            onCarLoaded={handleCarLoaded}
+            onSendStudents={handleSendStudents}
+            onMarkCompleted={handleMarkCompleted}
             getStudentNames={getStudentNamesForDismissal}
+            schoolProfile={schoolProfile}
           />
         </div>
       )}
@@ -217,9 +270,9 @@ const DashboardPage: React.FC = () => {
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#155724' }}>
-            {dismissals.filter(d => d.status === 'dismissed').length}
+            {dismissals.filter(d => d.status === 'completed').length}
           </div>
-          <div style={{ color: '#155724' }}>Cars Dismissed</div>
+          <div style={{ color: '#155724' }}>Completed</div>
         </div>
         <div style={{
           padding: '1rem',
@@ -228,9 +281,9 @@ const DashboardPage: React.FC = () => {
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#856404' }}>
-            {dismissals.filter(d => d.status === 'at_cone').length}
+            {dismissals.filter(d => d.status === 'sent').length}
           </div>
-          <div style={{ color: '#856404' }}>At Cones</div>
+          <div style={{ color: '#856404' }}>Students Sent</div>
         </div>
         <div style={{
           padding: '1rem',
@@ -239,9 +292,9 @@ const DashboardPage: React.FC = () => {
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '2rem', fontWeight: 'bold', color: '#004085' }}>
-            {dismissals.filter(d => d.status === 'waiting').length}
+            {dismissals.filter(d => d.status === 'queued').length}
           </div>
-          <div style={{ color: '#004085' }}>Waiting</div>
+          <div style={{ color: '#004085' }}>Queued</div>
         </div>
       </div>
     </div>

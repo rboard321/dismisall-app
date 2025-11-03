@@ -11,23 +11,23 @@ interface CarDisplayProps {
 const CarDisplay: React.FC<CarDisplayProps> = ({ car, onDismiss, onClear, loading }) => {
   const getStatusColor = (status: string): string => {
     switch (status) {
-      case 'waiting': return '#ffc107';
-      case 'at_cone': return '#17a2b8';
-      case 'dismissed': return '#28a745';
+      case 'queued': return '#ffc107';
+      case 'sent': return '#17a2b8';
+      case 'completed': return '#28a745';
       default: return '#6c757d';
     }
   };
 
   const getStatusText = (status: string): string => {
     switch (status) {
-      case 'waiting': return 'Waiting';
-      case 'at_cone': return 'At Cone';
-      case 'dismissed': return 'Dismissed';
+      case 'queued': return 'Queued';
+      case 'sent': return 'Students Sent';
+      case 'completed': return 'Completed';
       default: return 'Unknown';
     }
   };
 
-  const isAlreadyDismissed = car.status === 'dismissed';
+  const isAlreadyDismissed = car.status === 'completed';
 
   return (
     <div style={{

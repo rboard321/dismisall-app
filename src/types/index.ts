@@ -81,7 +81,8 @@ export interface Dismissal {
   coneNumber: number;
   dismissedBy: string; // user uid
   dismissedAt: Timestamp;
-  status: 'waiting' | 'at_cone' | 'dismissed' | 'historical';
+  status: 'queued' | 'sent' | 'completed' | 'historical';
+  sentAt?: Timestamp; // When students were sent to cone (for auto-clear tracking)
   resetAt?: Timestamp; // When this dismissal was reset to historical
 }
 
@@ -100,6 +101,8 @@ export interface School {
     defaultConeCount: number;
     dismissalStartTime?: string;
     dismissalEndTime?: string;
+    autoClearEnabled: boolean;
+    autoClearDelayMinutes: number;
   };
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -115,7 +118,7 @@ export interface CarWithStudents {
   students: StudentDisplay[];
   overrides: Override[];
   coneNumber?: number;
-  status: 'waiting' | 'at_cone' | 'dismissed';
+  status: 'queued' | 'sent' | 'completed';
   arrivedAt?: Timestamp;
 }
 

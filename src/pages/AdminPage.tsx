@@ -245,6 +245,50 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // Handle auto-clear toggle
+  const handleAutoClearToggle = async (enabled: boolean) => {
+    if (!userProfile?.schoolId) return;
+
+    setLoading(true);
+    try {
+      const schoolDoc = doc(db, 'schools', userProfile.schoolId);
+      await updateDoc(schoolDoc, {
+        'settings.autoClearEnabled': enabled,
+        'settings.autoClearDelayMinutes': enabled ? (schoolProfile?.settings?.autoClearDelayMinutes || 2) : 2,
+        updatedAt: Timestamp.now()
+      });
+
+      // The schoolProfile will be updated via the real-time listener in AuthContext
+      alert(`Auto-clear ${enabled ? 'enabled' : 'disabled'} successfully!`);
+    } catch (error) {
+      console.error('Error updating auto-clear setting:', error);
+      alert('Failed to update auto-clear setting. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle auto-clear delay change
+  const handleAutoClearDelayChange = async (delayMinutes: number) => {
+    if (!userProfile?.schoolId) return;
+
+    setLoading(true);
+    try {
+      const schoolDoc = doc(db, 'schools', userProfile.schoolId);
+      await updateDoc(schoolDoc, {
+        'settings.autoClearDelayMinutes': delayMinutes,
+        updatedAt: Timestamp.now()
+      });
+
+      alert(`Auto-clear delay updated to ${delayMinutes} minute${delayMinutes !== 1 ? 's' : ''}!`);
+    } catch (error) {
+      console.error('Error updating auto-clear delay:', error);
+      alert('Failed to update auto-clear delay. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Generate dismissal summary
   const getDismissalSummary = (): DismissalSummary => {
     const today = new Date().toISOString().split('T')[0];
@@ -377,7 +421,7 @@ const AdminPage: React.FC = () => {
 
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
             gap: '2rem',
             alignItems: 'start'
           }}>
@@ -387,6 +431,65 @@ const AdminPage: React.FC = () => {
               onUpdate={handleConeCountUpdate}
               loading={loading}
             />
+
+            {/* Auto-Clear Settings */}
+            <div style={{
+              backgroundColor: 'white',
+              border: '1px solid #dee2e6',
+              borderRadius: '8px',
+              padding: '1.5rem'
+            }}>
+              <h3 style={{ marginTop: 0 }}>Auto-Clear Settings</h3>
+              <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+                Automatically mark cars as completed after students have been sent to cones.
+              </p>
+
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={schoolProfile?.settings?.autoClearEnabled || false}
+                    onChange={(e) => handleAutoClearToggle(e.target.checked)}
+                    disabled={loading}
+                  />
+                  <span>Enable Auto-Clear</span>
+                </label>
+              </div>
+
+              {schoolProfile?.settings?.autoClearEnabled && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', fontWeight: 'bold' }}>
+                    Auto-Clear Delay
+                  </label>
+                  <select
+                    value={schoolProfile?.settings?.autoClearDelayMinutes || 2}
+                    onChange={(e) => handleAutoClearDelayChange(parseInt(e.target.value))}
+                    disabled={loading}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      border: '1px solid #ced4da',
+                      borderRadius: '4px'
+                    }}
+                  >
+                    <option value={1}>1 minute</option>
+                    <option value={2}>2 minutes</option>
+                    <option value={3}>3 minutes</option>
+                    <option value={5}>5 minutes</option>
+                  </select>
+                </div>
+              )}
+
+              <div style={{
+                padding: '0.75rem',
+                backgroundColor: '#e7f3ff',
+                border: '1px solid #b3d9ff',
+                borderRadius: '4px',
+                fontSize: '0.875rem'
+              }}>
+                <strong>💡 How it works:</strong> When you click "Send Students", cars will automatically be marked as completed after the delay time. You can still use "Done Now" for immediate completion.
+              </div>
+            </div>
 
             {/* Reset Controls */}
             <div style={{

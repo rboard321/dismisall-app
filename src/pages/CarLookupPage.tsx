@@ -231,7 +231,7 @@ const CarLookupPage: React.FC = () => {
 
         setTodaysLane(prev => prev ? { ...prev, currentPointer: nextPointer } : null);
 
-        // Record the car assignment to Firestore with waiting status
+        // Record the car assignment to Firestore with queued status
         console.log('Attempting to create dismissal record...');
         await addDoc(dismissalsCollection, {
           carNumber,
@@ -239,7 +239,7 @@ const CarLookupPage: React.FC = () => {
           coneNumber,
           dismissedBy: userProfile.uid,
           dismissedAt: Timestamp.now(),
-          status: 'waiting'
+          status: 'queued'
         });
         console.log('Dismissal record created successfully');
 
@@ -283,8 +283,8 @@ const CarLookupPage: React.FC = () => {
 
     if (window.confirm('Clear all cars from the queue?')) {
       try {
-        const waitingCars = todaysDismissals.filter(d => d.status === 'waiting');
-        const updatePromises = waitingCars.map(dismissal => {
+        const queuedCars = todaysDismissals.filter(d => d.status === 'queued');
+        const updatePromises = queuedCars.map(dismissal => {
           const dismissalDoc = doc(db, 'schools', userProfile.schoolId!, 'dismissals', dismissal.id);
           return updateDoc(dismissalDoc, {
             status: 'historical',
@@ -351,7 +351,7 @@ const CarLookupPage: React.FC = () => {
       />
 
       {/* Today's Queue */}
-      {todaysDismissals.filter(d => d.status === 'waiting').length > 0 && (
+      {todaysDismissals.filter(d => d.status === 'queued').length > 0 && (
         <div style={{ marginTop: '2rem' }}>
           <div style={{
             display: 'flex',
@@ -360,7 +360,7 @@ const CarLookupPage: React.FC = () => {
             marginBottom: '1rem'
           }}>
             <h3 style={{ margin: 0 }}>
-              Today's Queue ({todaysDismissals.filter(d => d.status === 'waiting').length})
+              Today's Queue ({todaysDismissals.filter(d => d.status === 'queued').length})
             </h3>
             <button
               onClick={handleClearAll}
@@ -386,7 +386,7 @@ const CarLookupPage: React.FC = () => {
             gap: '0.75rem'
           }}>
             {todaysDismissals
-              .filter(dismissal => dismissal.status === 'waiting')
+              .filter(dismissal => dismissal.status === 'queued')
               .map((dismissal) => (
               <div
                 key={dismissal.id}

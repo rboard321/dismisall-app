@@ -75,7 +75,9 @@ const SchoolSetupPage: React.FC = () => {
         settings: {
           defaultConeCount: 4,
           dismissalStartTime: '14:30',
-          dismissalEndTime: '15:30'
+          dismissalEndTime: '15:30',
+          autoClearEnabled: true,
+          autoClearDelayMinutes: 2
         },
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
