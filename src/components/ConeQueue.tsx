@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dismissal, School } from '../types';
+import { useAnimations } from '../utils/feedback';
 
 interface ConeQueueProps {
   coneCount: number;
@@ -23,6 +24,8 @@ const ConeQueue: React.FC<ConeQueueProps> = ({
   const [loadingStates, setLoadingStates] = useState<{ [key: string]: boolean }>({});
   const [showHistory, setShowHistory] = useState<{ [key: number]: boolean }>({});
   const [currentTime, setCurrentTime] = useState(new Date());
+  const cardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const { haptic, animate, celebrate, loading } = useAnimations();
 
   const handleSendStudents = async (dismissalId: string) => {
     setLoadingStates(prev => ({ ...prev, [dismissalId]: true }));

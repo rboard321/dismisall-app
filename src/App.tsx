@@ -17,6 +17,7 @@ import AccountSetupPage from './pages/AccountSetupPage';
 import SignupPage from './pages/SignupPage';
 import SchoolSetupPage from './pages/SchoolSetupPage';
 import PWAInstallPrompt from './components/PWAInstallPrompt';
+import { GlobalAnimations } from './utils/feedback';
 import './styles/responsive.css';
 import './App.css';
 
@@ -35,6 +36,8 @@ const ProtectedPageLayout: React.FC<{ children: React.ReactNode }> = ({ children
 const App: React.FC = () => (
   <AuthProvider>
     <Router>
+      {/* Inject global animations */}
+      <style dangerouslySetInnerHTML={{ __html: GlobalAnimations }} />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/register" element={<SchoolRegistrationPage />} />

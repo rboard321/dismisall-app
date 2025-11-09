@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, getDocs, onSnapshot, doc, updateDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
 import { Student, Override, Lane, Dismissal } from '../types';
 import CarInput from '../components/CarInput';
+import '../styles/CarLookup.css';
 
 interface CarLookupResult {
   carNumber: string;
@@ -24,6 +25,7 @@ const CarLookupPage: React.FC = () => {
   const [todaysLane, setTodaysLane] = useState<Lane | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [laneCreationAttempted, setLaneCreationAttempted] = useState(false);
 
 
   // Subscribe to real-time lane updates
@@ -44,9 +46,12 @@ const CarLookupPage: React.FC = () => {
         const laneData = { id: laneDoc.id, ...laneDoc.data() } as Lane;
         console.log('Updated lane data:', laneData);
         setTodaysLane(laneData);
-      } else {
+        // Reset creation attempt flag when lane is found
+        setLaneCreationAttempted(false);
+      } else if (!laneCreationAttempted) {
         // Create today's lane with default settings if it doesn't exist
         console.log('No lane found for today, creating new lane...');
+        setLaneCreationAttempted(true);
         try {
           const newLane: Omit<Lane, 'id'> = {
             date: today,
@@ -57,11 +62,12 @@ const CarLookupPage: React.FC = () => {
             updatedAt: Timestamp.now()
           };
           const docRef = await addDoc(lanesCollection, newLane);
-          setTodaysLane({ id: docRef.id, ...newLane });
-          console.log('Created new lane with pointer 1');
+          console.log('Created new lane with ID:', docRef.id);
+          // Don't set the lane here - let the snapshot listener handle it
         } catch (error) {
           console.error('Error creating today\'s lane:', error);
-          setError('Failed to create dismissal configuration');
+          setError('Failed to create dismissal configuration. Please contact your administrator.');
+          setLaneCreationAttempted(false); // Allow retry on error
         }
       }
     }, (error) => {
@@ -73,6 +79,11 @@ const CarLookupPage: React.FC = () => {
       console.log('Cleaning up lane listener');
       unsubscribe();
     };
+  }, [userProfile?.schoolId, laneCreationAttempted]); // Include laneCreationAttempted in dependencies
+
+  // Reset lane creation attempt when schoolId changes
+  useEffect(() => {
+    setLaneCreationAttempted(false);
   }, [userProfile?.schoolId]);
 
   // Subscribe to real-time dismissal updates
@@ -110,7 +121,7 @@ const CarLookupPage: React.FC = () => {
   }, [userProfile?.schoolId]);
 
   // Find car with students and assign cone
-  const handleCarLookup = async (carNumber: string) => {
+  const handleCarLookup = useCallback(async (carNumber: string) => {
     if (!userProfile?.schoolId || !carNumber.trim()) return;
 
     setLoading(true);
@@ -259,9 +270,9 @@ const CarLookupPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [userProfile?.schoolId, userProfile?.uid, userProfile?.role, userProfile?.permissions, todaysLane]);
 
-  const handleRemoveCar = async (dismissalId: string) => {
+  const handleRemoveCar = useCallback(async (dismissalId: string) => {
     if (!userProfile?.schoolId) return;
 
     if (window.confirm('Remove this car from the queue?')) {
@@ -276,9 +287,9 @@ const CarLookupPage: React.FC = () => {
         setError('Failed to remove car. Please try again.');
       }
     }
-  };
+  }, [userProfile?.schoolId]);
 
-  const handleClearAll = async () => {
+  const handleClearAll = useCallback(async () => {
     if (!userProfile?.schoolId) return;
 
     if (window.confirm('Clear all cars from the queue?')) {
@@ -298,7 +309,7 @@ const CarLookupPage: React.FC = () => {
         setError('Failed to clear cars. Please try again.');
       }
     }
-  };
+  }, [userProfile?.schoolId, todaysDismissals]);
 
   if (!userProfile) return null;
 
@@ -311,35 +322,22 @@ const CarLookupPage: React.FC = () => {
   });
 
   return (
-    <div style={{ padding: '1rem', maxWidth: '600px', margin: '0 auto' }}>
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '2rem',
-        flexWrap: 'wrap',
-        gap: '1rem'
-      }}>
-        <h1>Car Lookup</h1>
-        <div style={{ fontSize: '0.875rem', color: '#666' }}>
-          {todaysLane && (
-            <div>
-              <strong>Next Cone:</strong> {todaysLane.currentPointer}
-            </div>
-          )}
-        </div>
+    <div className="car-lookup-container">
+      {/* Mobile-first header */}
+      <div className="car-lookup-header">
+        <h1 className="car-lookup-title">🚗 Car Lookup</h1>
+        {todaysLane && (
+          <div className="next-cone-indicator">
+            <span className="cone-label">Next Cone:</span>
+            <span className="cone-number">{todaysLane.currentPointer}</span>
+          </div>
+        )}
       </div>
 
       {error && (
-        <div style={{
-          backgroundColor: '#f8d7da',
-          color: '#721c24',
-          padding: '0.75rem',
-          borderRadius: '4px',
-          border: '1px solid #f5c6cb',
-          marginBottom: '1rem'
-        }}>
-          {error}
+        <div className="car-lookup-error">
+          <span className="error-icon">⚠️</span>
+          <span className="error-text">{error}</span>
         </div>
       )}
 
@@ -352,90 +350,47 @@ const CarLookupPage: React.FC = () => {
 
       {/* Today's Queue */}
       {todaysDismissals.filter(d => d.status === 'queued').length > 0 && (
-        <div style={{ marginTop: '2rem' }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '1rem'
-          }}>
-            <h3 style={{ margin: 0 }}>
-              Today's Queue ({todaysDismissals.filter(d => d.status === 'queued').length})
+        <div className="car-lookup-queue">
+          <div className="queue-header">
+            <h3 className="queue-title">
+              📋 Queue ({todaysDismissals.filter(d => d.status === 'queued').length})
             </h3>
             <button
               onClick={handleClearAll}
-              style={{
-                padding: '0.5rem 1rem',
-                backgroundColor: '#dc3545',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontSize: '0.875rem'
-              }}
+              className="btn btn-danger clear-all-btn"
             >
-              Clear All
+              🗑️ Clear All
             </button>
           </div>
 
-          <div style={{
-            maxHeight: '500px',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem'
-          }}>
+          <div className="queue-list">
             {todaysDismissals
               .filter(dismissal => dismissal.status === 'queued')
               .map((dismissal) => (
               <div
                 key={dismissal.id}
-                style={{
-                  padding: '1rem',
-                  backgroundColor: 'white',
-                  borderRadius: '8px',
-                  border: '1px solid #dee2e6'
-                }}
+                className="queue-car-card"
               >
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '0.75rem'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    <h4 style={{ margin: 0, fontSize: '1.25rem' }}>
-                      Car {dismissal.carNumber}
+                <div className="car-card-header">
+                  <div className="car-info">
+                    <h4 className="car-number">
+                      🚗 Car {dismissal.carNumber}
                     </h4>
-                    <span style={{
-                      padding: '0.25rem 0.75rem',
-                      backgroundColor: '#ffc107',
-                      color: '#212529',
-                      borderRadius: '12px',
-                      fontSize: '0.875rem',
-                      fontWeight: 'bold'
-                    }}>
-                      → Cone {dismissal.coneNumber}
+                    <span className="cone-assignment">
+                      🔴 Cone {dismissal.coneNumber}
                     </span>
                   </div>
                   <button
                     onClick={() => handleRemoveCar(dismissal.id)}
-                    style={{
-                      padding: '0.25rem 0.5rem',
-                      backgroundColor: '#6c757d',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '0.75rem'
-                    }}
+                    className="btn btn-sm remove-car-btn"
+                    title="Remove from queue"
                   >
                     ✕
                   </button>
                 </div>
 
-                <div style={{ fontSize: '0.875rem', color: '#666' }}>
-                  {dismissal.studentIds.length} student{dismissal.studentIds.length !== 1 ? 's' : ''} assigned
+                <div className="student-count">
+                  👥 {dismissal.studentIds.length} student{dismissal.studentIds.length !== 1 ? 's' : ''}
                 </div>
               </div>
             ))}
@@ -443,26 +398,33 @@ const CarLookupPage: React.FC = () => {
         </div>
       )}
 
-      {/* Instructions */}
-      <div style={{
-        marginTop: '2rem',
-        padding: '1rem',
-        backgroundColor: '#e7f3ff',
-        border: '1px solid #b3d9ff',
-        borderRadius: '4px',
-        fontSize: '0.875rem',
-        color: '#004085'
-      }}>
-        <strong>📝 How to use:</strong>
-        <ol style={{ marginTop: '0.5rem', marginBottom: 0, paddingLeft: '1.5rem' }}>
-          <li>Enter car numbers one by one - each car gets added to the queue below</li>
-          <li>Cars are automatically assigned cone numbers</li>
-          <li>Queue persists when navigating between pages</li>
-          <li>Cars disappear when processed at the Management page</li>
-          <li>Use "Clear All" or individual "✕" buttons to remove cars manually</li>
-        </ol>
-        <div style={{ marginTop: '0.75rem', padding: '0.5rem', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '4px' }}>
-          <strong>💡 Tip:</strong> The queue is shared in real-time across all devices and pages!
+      {/* Instructions - Collapsible on mobile */}
+      <div className="car-lookup-instructions">
+        <div className="instructions-header">
+          <span>📝 Quick Guide</span>
+        </div>
+        <div className="instructions-content">
+          <div className="instruction-grid">
+            <div className="instruction-item">
+              <span className="instruction-icon">🔤</span>
+              <span>Type car number</span>
+            </div>
+            <div className="instruction-item">
+              <span className="instruction-icon">🎤</span>
+              <span>Use voice input</span>
+            </div>
+            <div className="instruction-item">
+              <span className="instruction-icon">📱</span>
+              <span>Scan QR code</span>
+            </div>
+            <div className="instruction-item">
+              <span className="instruction-icon">🔄</span>
+              <span>Real-time sync</span>
+            </div>
+          </div>
+          <div className="tip-banner">
+            💡 Queue updates live across all devices!
+          </div>
         </div>
       </div>
     </div>

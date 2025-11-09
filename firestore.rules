@@ -41,9 +41,9 @@ service cloud.firestore {
         let oldStatus = resource.data.status;
         let newStatus = request.resource.data.status;
 
-        // Allow valid transitions: waiting → at_cone → dismissed
-        return (oldStatus == 'waiting' && newStatus == 'at_cone') ||
-               (oldStatus == 'at_cone' && newStatus == 'dismissed') ||
+        // Allow valid transitions: queued → sent → completed
+        return (oldStatus == 'queued' && newStatus == 'sent') ||
+               (oldStatus == 'sent' && newStatus == 'completed') ||
                (oldStatus != 'historical' && newStatus == 'historical'); // Allow marking as historical
       }
 
@@ -65,7 +65,7 @@ service cloud.firestore {
                data.studentIds is list &&
                data.coneNumber is number &&
                data.dismissedBy is string &&
-               data.status in ['waiting', 'at_cone', 'dismissed', 'historical'];
+               data.status in ['queued', 'sent', 'completed', 'historical'];
       }
 
       // Students collection
@@ -89,7 +89,8 @@ service cloud.firestore {
       // Lanes collection
       match /lanes/{laneId} {
         allow read: if belongsToSchool();
-        allow create, delete: if belongsToSchool() && hasRole('admin');
+        allow create: if belongsToSchool() && canDismiss(); // Allow teachers to create daily lanes
+        allow delete: if belongsToSchool() && hasRole('admin');
         allow update: if belongsToSchool() && canDismiss(); // Allow teachers to update lane pointer
       }
 
