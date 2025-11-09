@@ -585,7 +585,7 @@ const CarInput: React.FC<CarInputProps> = ({ onCarSubmit, loading, disabled }) =
         onScan={handleQRScan}
         onClose={() => setShowQRScanner(false)}
       />
-    </>
+    </div>
   );
 };
 

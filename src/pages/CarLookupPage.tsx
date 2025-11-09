@@ -6,18 +6,18 @@ import { Student, Override, Lane, Dismissal } from '../types';
 import CarInput from '../components/CarInput';
 import '../styles/CarLookup.css';
 
-interface CarLookupResult {
-  carNumber: string;
-  students: {
-    id: string;
-    displayName: string;
-    grade: string;
-    isOverride: boolean;
-  }[];
-  coneNumber: number;
-  status: 'success' | 'no_students' | 'already_dismissed';
-  timestamp: Date;
-}
+// interface CarLookupResult {
+//   carNumber: string;
+//   students: {
+//     id: string;
+//     displayName: string;
+//     grade: string;
+//     isOverride: boolean;
+//   }[];
+//   coneNumber: number;
+//   status: 'success' | 'no_students' | 'already_dismissed';
+//   timestamp: Date;
+// }
 
 const CarLookupPage: React.FC = () => {
   const { userProfile } = useAuth();

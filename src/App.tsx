@@ -24,10 +24,7 @@ import './App.css';
 const ProtectedPageLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <>
     <Navigation />
-    <div style={{ paddingBottom: '80px' }} className="show-mobile-only">
-      {children}
-    </div>
-    <div className="hidden-mobile">
+    <div className="mobile-nav-content">
       {children}
     </div>
   </>

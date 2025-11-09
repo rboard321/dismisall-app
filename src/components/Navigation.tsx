@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { PagePermission } from '../types';
+import '../styles/MobileNavigation.css';
 
 const Navigation: React.FC = () => {
   const navigate = useNavigate();
@@ -68,89 +69,60 @@ const Navigation: React.FC = () => {
   });
 
   return (
-    <nav
-      style={{ backgroundColor: '#343a40' }}
-      className="p-3 flex justify-between items-center flex-wrap gap-md"
-    >
-      <div className="flex items-center gap-md">
-        <h1 className="text-xl font-semibold m-0" style={{ color: 'white' }}>
-          🚸 Dismissal App
-        </h1>
+    <>
+      <nav className="mobile-nav-top">
+        <div className="nav-header">
+          <div className="nav-brand">
+            <h1 className="nav-brand-title">🚸 Dismissal App</h1>
+          </div>
 
-        {/* Desktop Navigation */}
-        <div className="hidden-mobile flex gap-sm">
-          {filteredNavItems.map(item => (
+          {/* Desktop Navigation */}
+          <div className="hidden-mobile desktop-nav">
+            {filteredNavItems.map(item => (
+              <button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                className={`desktop-nav-btn ${location.pathname === item.path ? 'active' : ''}`}
+              >
+                <span>{item.icon}</span>
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-md">
+            <div className="nav-user-info hidden-mobile">
+              <div className="nav-user-name">{userProfile.displayName || userProfile.email}</div>
+              <div className="nav-user-role">{userProfile.role.replace('_', ' ')}</div>
+            </div>
+
             <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={`btn btn-sm ${location.pathname === item.path ? 'btn-primary' : ''}`}
-              style={{
-                backgroundColor: location.pathname === item.path ? '#007bff' : 'transparent',
-                color: 'white',
-                border: location.pathname === item.path ? '1px solid #007bff' : '1px solid transparent'
-              }}
+              onClick={handleLogout}
+              className="nav-logout-btn"
             >
-              <span>{item.icon}</span>
-              <span className="hidden-mobile">{item.label}</span>
+              <span className="show-mobile-only">👋</span>
+              <span className="hidden-mobile">Logout</span>
             </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-md">
-        <div className="text-sm hidden-mobile" style={{ color: '#adb5bd' }}>
-          <div>{userProfile.displayName || userProfile.email}</div>
-          <div className="text-xs" style={{ textTransform: 'capitalize' }}>
-            {userProfile.role.replace('_', ' ')}
           </div>
         </div>
-
-        <button
-          onClick={handleLogout}
-          className="btn btn-danger btn-sm"
-        >
-          <span className="show-mobile-only">👋</span>
-          <span className="hidden-mobile">Logout</span>
-        </button>
-      </div>
+      </nav>
 
       {/* Mobile Navigation - Bottom tabs style */}
-      <div className="show-mobile-only" style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#343a40',
-        borderTop: '1px solid #495057',
-        padding: '0.5rem',
-        zIndex: 1000
-      }}>
-        <div className="grid gap-xs" style={{
-          gridTemplateColumns: `repeat(${Math.min(filteredNavItems.length, 5)}, 1fr)`
-        }}>
+      <div className={`show-mobile-only mobile-bottom-nav`}>
+        <div className={`mobile-nav-grid nav-grid-${Math.min(filteredNavItems.length, 5)}`}>
           {filteredNavItems.map(item => (
             <button
               key={item.path}
               onClick={() => navigate(item.path)}
-              className="btn btn-sm text-center"
-              style={{
-                backgroundColor: location.pathname === item.path ? '#007bff' : 'transparent',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                padding: '0.5rem 0.25rem',
-                flexDirection: 'column',
-                fontSize: '0.75rem',
-                minHeight: '60px'
-              }}
+              className={`mobile-nav-btn ${location.pathname === item.path ? 'active' : ''}`}
             >
-              <div style={{ fontSize: '1.2rem', marginBottom: '0.25rem' }}>{item.icon}</div>
-              <div style={{ fontSize: '0.6rem', lineHeight: 1 }}>{item.label}</div>
+              <div className="mobile-nav-icon">{item.icon}</div>
+              <div className="mobile-nav-label">{item.label}</div>
             </button>
           ))}
         </div>
       </div>
-    </nav>
+    </>
   );
 };
 
